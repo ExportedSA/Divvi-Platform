@@ -852,6 +852,36 @@ model SystemConfig {
 }
 
 // ============================================
+// WEBHOOK EVENT TRACKING (for idempotency)
+// ============================================
+
+enum WebhookEventStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  SKIPPED
+}
+
+model WebhookEvent {
+  id            String             @id @default(cuid())
+  stripeEventId String             @unique @map("stripeEventId")
+  eventType     String             @map("eventType")
+  status        WebhookEventStatus @default(PENDING) @map("status")
+  attempts      Int                @default(0) @map("attempts")
+  lastError     String?            @map("lastError") @db.Text
+  payload       Json?              @map("payload")
+  processedAt   DateTime?          @map("processedAt")
+  createdAt     DateTime           @default(now()) @map("createdAt")
+  updatedAt     DateTime           @updatedAt @map("updatedAt")
+
+  @@index([stripeEventId])
+  @@index([status])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("webhook_events")
+}
+
+// ============================================
 // PAYMENT & FINANCIAL SYSTEM
 // ============================================
 

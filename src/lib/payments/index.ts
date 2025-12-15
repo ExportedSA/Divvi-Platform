@@ -4,6 +4,7 @@
  * Centralized exports for payment processing.
  */
 
+// Core Stripe service
 export {
   stripe,
   calculatePaymentAmounts,
@@ -15,8 +16,6 @@ export {
   captureBond,
   releaseBond,
   processRefund,
-  verifyWebhookSignature,
-  handleWebhookEvent,
 } from './stripe-service'
 
 export type {
@@ -26,3 +25,17 @@ export type {
   DepositPaymentParams,
   PaymentMode,
 } from './stripe-service'
+
+// Webhook handling with idempotency and reconciliation
+export {
+  verifyWebhookSignature,
+  processWebhookEvent,
+  getFailedWebhookEvents,
+  retryWebhookEvent,
+  reconcilePaymentIntent,
+} from './webhook-handler'
+
+export type {
+  WebhookResult,
+  WebhookEventRecord,
+} from './webhook-handler'
