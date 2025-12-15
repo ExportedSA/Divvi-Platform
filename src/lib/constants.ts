@@ -89,16 +89,40 @@ export const BOOKING_STATUS = [
   'ACCEPTED',
   'DECLINED',
   'CANCELLED',
+  'AWAITING_PICKUP',
+  'IN_USE',
+  'AWAITING_RETURN_INSPECTION',
+  'IN_DISPUTE',
   'COMPLETED'
 ] as const
 
 export const BOOKING_STATUS_LABELS = {
-  PENDING: 'Pending',
-  ACCEPTED: 'Accepted',
+  PENDING: 'Pending Approval',
+  ACCEPTED: 'Accepted - Awaiting Payment',
   DECLINED: 'Declined',
   CANCELLED: 'Cancelled',
+  AWAITING_PICKUP: 'Ready for Pickup',
+  IN_USE: 'In Use',
+  AWAITING_RETURN_INSPECTION: 'Returned - Pending Inspection',
+  IN_DISPUTE: 'In Dispute',
   COMPLETED: 'Completed'
 } as const
+
+// Terminal states - bookings cannot transition from these
+export const BOOKING_TERMINAL_STATES = [
+  'DECLINED',
+  'CANCELLED',
+  'COMPLETED'
+] as const
+
+// Active states - bookings that are "in progress"
+export const BOOKING_ACTIVE_STATES = [
+  'ACCEPTED',
+  'AWAITING_PICKUP',
+  'IN_USE',
+  'AWAITING_RETURN_INSPECTION',
+  'IN_DISPUTE'
+] as const
 
 export const INSURANCE_MODE = [
   'OWNER_PROVIDED',
