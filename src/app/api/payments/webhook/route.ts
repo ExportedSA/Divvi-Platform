@@ -97,9 +97,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Disable body parsing for webhook (need raw body for signature verification)
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
+// Route segment config for App Router
+// Dynamic forces dynamic rendering (not static)
+export const dynamic = 'force-dynamic'
+
+// Disable static optimization for webhooks
+export const runtime = 'nodejs'
