@@ -1,0 +1,2819 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  RENTER
+  OWNER
+  ADMIN
+}
+
+enum Country {
+  NZ
+  AU
+}
+
+enum Currency {
+  NZD
+  AUD
+}
+
+enum ListingCategory {
+  TRACTOR
+  DIGGER
+  LOADER
+  SPRAYER
+  IMPLEMENT
+  TRUCK
+  OTHER
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  LIVE
+  PAUSED
+  REJECTED
+}
+
+enum InsuranceMode {
+  OWNER_PROVIDED
+  RENTER_PROVIDED
+  NONE
+}
+
+enum BookingStatus {
+  PENDING // Booking request submitted, awaiting owner approval
+  ACCEPTED // Owner accepted, awaiting payment
+  DECLINED // Owner declined
+  CANCELLED // Cancelled by renter or owner
+  AWAITING_PICKUP // Payment complete, ready for pickup/delivery
+  IN_USE // Equipment picked up, rental in progress
+  AWAITING_RETURN_INSPECTION // Equipment returned, pending inspection
+  IN_DISPUTE // Dispute raised on return (damage, missing items, etc.)
+  COMPLETED // Rental completed successfully
+}
+
+enum ReviewTargetType {
+  OWNER
+  RENTER
+  LISTING
+}
+
+enum NotificationType {
+  BOOKING_REQUEST
+  BOOKING_ACCEPTED
+  BOOKING_DECLINED
+  MESSAGE_RECEIVED
+  LISTING_APPROVED
+  VERIFICATION_APPROVED
+  VERIFICATION_REJECTED
+  HIGH_VALUE_ALERT
+  PICKUP_REMINDER
+  RETURN_REMINDER
+  HANDOVER_COMPLETED
+  DISPUTE_RAISED
+  DISPUTE_RESOLVED
+}
+
+enum AvailabilityType {
+  UNAVAILABLE_BLOCK
+}
+
+// Delivery mode for listings
+enum DeliveryMode {
+  PICKUP_ONLY // Renter picks up from owner's location
+  DELIVERY_ONLY // Owner delivers to renter
+  PICKUP_OR_DELIVERY // Both options available
+}
+
+// Handover type
+enum HandoverType {
+  PICKUP // Start of rental
+  RETURN // End of rental
+}
+
+// Checklist item type
+enum ChecklistItemType {
+  PHOTO_REQUIRED // Must upload a photo
+  CHECKBOX // Simple yes/no check
+  NUMBER_INPUT // Numeric value (hours, fuel level %)
+  TEXT_INPUT // Free text notes
+  CONDITION_RATING // 1-5 rating scale
+}
+
+// Dispute status
+enum DisputeStatus {
+  OPEN // Dispute raised
+  UNDER_REVIEW // Admin reviewing
+  AWAITING_RESPONSE // Waiting for party response
+  RESOLVED // Dispute resolved
+  ESCALATED // Escalated to external resolution
+}
+
+// Verification status for users
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+// Types of verification documents
+enum VerificationDocType {
+  DRIVER_LICENCE
+  PASSPORT
+  GST_CERTIFICATE
+  BUSINESS_REGISTRATION
+  PROOF_OF_OWNERSHIP
+  EQUIPMENT_INVOICE
+  EQUIPMENT_REGISTRATION
+  INSURANCE_CERTIFICATE
+  OTHER
+}
+
+// Audit action types
+enum AuditAction {
+  // User actions
+  USER_REGISTERED
+  USER_UPDATED
+  USER_VERIFICATION_SUBMITTED
+  USER_VERIFICATION_APPROVED
+  USER_VERIFICATION_REJECTED
+  // Listing actions
+  LISTING_CREATED
+  LISTING_UPDATED
+  LISTING_STATUS_CHANGED
+  LISTING_DELETED
+  LISTING_HIGH_VALUE_FLAGGED
+  // Booking actions
+  BOOKING_CREATED
+  BOOKING_STATUS_CHANGED
+  BOOKING_CANCELLED
+  // Review actions
+  REVIEW_CREATED
+  REVIEW_UPDATED
+  REVIEW_DELETED
+  // Policy actions
+  POLICY_CREATED
+  POLICY_UPDATED
+  POLICY_PUBLISHED
+  // Admin actions
+  ADMIN_USER_SUSPENDED
+  ADMIN_LISTING_REMOVED
+  ADMIN_DISPUTE_RESOLVED
+  // Damage report actions
+  DAMAGE_REPORTED
+  DAMAGE_RESOLVED
+  BOND_APPLIED
+}
+
+// Moderation action types
+enum ModerationAction {
+  NONE // No action taken
+  WARNING // Warning issued
+  CONTENT_HIDDEN // Content hidden from public
+  CONTENT_REMOVED // Content soft-deleted
+  USER_WARNED // User warned
+  USER_SUSPENDED // User temporarily suspended
+  USER_BANNED // User permanently banned
+}
+
+// ============================================
+// INSURANCE & DAMAGES ENUMS
+// ============================================
+
+// Damage status for bookings
+enum DamageStatus {
+  NONE_REPORTED // No damage reported
+  POTENTIAL_DAMAGE_REPORTED // Damage flagged, under review
+  CONFIRMED_DAMAGE // Damage confirmed
+  RESOLVED_NO_CHARGE // Resolved without bond use
+  RESOLVED_BOND_PARTIALLY_USED // Resolved with partial bond
+  RESOLVED_BOND_FULLY_USED // Resolved with full bond
+}
+
+// Damage severity levels
+enum DamageSeverity {
+  MINOR // Cosmetic, doesn't affect function
+  MODERATE // Affects function but repairable
+  MAJOR // Significant damage, expensive repair
+  TOTAL_LOSS // Beyond economical repair
+}
+
+// Damage report status
+enum DamageReportStatus {
+  OPEN // Report submitted
+  UNDER_REVIEW // Admin/owner reviewing
+  AWAITING_MORE_INFO // Need more details/photos
+  RESOLVED_NO_ACTION // No action needed
+  RESOLVED_BOND_PARTIAL // Partial bond applied
+  RESOLVED_BOND_FULL // Full bond applied
+  ESCALATED // Escalated to dispute
+}
+
+// Who reported the damage
+enum ReporterRole {
+  OWNER
+  RENTER
+  ADMIN
+}
+
+// Static page categories for CMS
+enum PageCategory {
+  LEGAL // Terms, policies, legal documents
+  GUIDE // How-to guides, tutorials
+  FAQ // Frequently asked questions
+  GENERAL // General content
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  passwordHash    String   @map("password")
+  role            UserRole @default(RENTER)
+  firstName       String   @map("firstName")
+  lastName        String   @map("lastName")
+  farmName        String?  @map("farmName")
+  phone           String?  @map("phone")
+  country         Country  @default(NZ)
+  region          String
+  localArea       String?  @map("localArea")
+  isEmailVerified Boolean  @default(false) @map("isEmailVerified")
+
+  // Verification fields
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verificationStatus")
+  verifiedAt         DateTime?          @map("verifiedAt")
+  verificationNotes  String?            @map("verificationNotes")
+
+  // Renter verification
+  driverLicenceNumber   String?   @map("driverLicenceNumber")
+  driverLicenceExpiry   DateTime? @map("driverLicenceExpiry")
+  driverLicenceVerified Boolean   @default(false) @map("driverLicenceVerified")
+
+  // Owner verification (business)
+  gstNumber        String? @map("gstNumber")
+  businessName     String? @map("businessName")
+  businessVerified Boolean @default(false) @map("businessVerified")
+
+  // Risk flags
+  isHighRisk      Boolean   @default(false) @map("isHighRisk")
+  riskNotes       String?   @map("riskNotes")
+  isSuspended     Boolean   @default(false) @map("isSuspended")
+  suspendedReason String?   @map("suspendedReason")
+  suspendedAt     DateTime? @map("suspendedAt")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  listings              Listing[]
+  bookingsAsRenter      Booking[]             @relation("RenterBookings")
+  bookingsAsOwner       Booking[]             @relation("OwnerBookings")
+  reviews               Review[]
+  notifications         Notification[]
+  conversationsAsOwner  Conversation[]        @relation("OwnerConversations")
+  conversationsAsRenter Conversation[]        @relation("RenterConversations")
+  messages              Message[]
+  verificationRequests  VerificationRequest[]
+  auditLogsAsActor      AuditLog[]            @relation("AuditActor")
+  auditLogsAsTarget     AuditLog[]            @relation("AuditTarget")
+  payoutAccount         OwnerPayoutAccount?
+  referralsMade         Referral[]            @relation("ReferralsMade")
+  referralsReceived     Referral[]            @relation("ReferralsReceived")
+
+  @@index([email])
+  @@index([role])
+  @@index([country, region])
+  @@index([verificationStatus])
+  @@index([isSuspended])
+  @@map("users")
+}
+
+model Listing {
+  id      String @id @default(cuid())
+  ownerId String @map("ownerId")
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Basic details
+  title       String          @map("title")
+  description String          @map("description")
+  category    ListingCategory @map("category")
+  brand       String?         @map("brand")
+  model       String?         @map("model")
+  year        Int?            @map("year")
+
+  // Key specifications
+  enginePowerHP     Int?   @map("enginePowerHP")
+  workingWidthM     Float? @map("workingWidthM")
+  operatingWeightKg Int?   @map("operatingWeightKg")
+
+  // Location
+  country   Country @map("country")
+  region    String  @map("region")
+  localArea String? @map("localArea")
+
+  // Pricing
+  currency          Currency @map("currency")
+  pricePerDay       Decimal  @map("pricePerDay") @db.Decimal(10, 2)
+  pricePerWeek      Decimal? @map("pricePerWeek") @db.Decimal(10, 2)
+  minimumRentalDays Int?     @map("minimumRentalDays")
+  bondAmount        Decimal? @map("bondAmount") @db.Decimal(10, 2)
+
+  // Insurance & Safety
+  insuranceMode       InsuranceMode @map("insuranceMode")
+  insuranceNotes      String?       @map("insuranceNotes") @db.Text // Owner's free-form notes (insurer, policy conditions, exclusions)
+  safetyNotes         String?       @map("safetyNotes") @db.Text
+  damageExcessNotes   String?       @map("damageExcessNotes") @db.Text // Owner's excess expectations or guidance
+  safeUseRequirements String?       @map("safeUseRequirements") @db.Text // E.g. "Operator must have W endorsement"
+
+  // Maintenance & responsibility
+  maintenanceResponsibilityOwner Boolean @default(true) @map("maintenanceResponsibilityOwner") // Owner responsible for mechanical soundness
+
+  // High-value & risk flagging
+  isHighValue               Boolean  @default(false) @map("isHighValue")
+  isHighRiskAsset           Boolean  @default(false) @map("isHighRiskAsset") // Flagged by admin or auto-threshold
+  highValueReason           String?  @map("highValueReason")
+  requiresVerification      Boolean  @default(false) @map("requiresVerification")
+  estimatedValue            Decimal? @map("estimatedValue") @db.Decimal(12, 2)
+  estimatedReplacementValue Decimal? @map("estimatedReplacementValue") @db.Decimal(12, 2) // For risk management
+
+  // Ownership verification
+  ownershipVerified Boolean  @default(false) @map("ownershipVerified")
+  ownershipDocs     String[] @map("ownershipDocs")
+
+  // Delivery & Logistics
+  deliveryMode       DeliveryMode @default(PICKUP_ONLY) @map("deliveryMode")
+  deliveryFlatFee    Decimal?     @map("deliveryFlatFee") @db.Decimal(10, 2)
+  deliveryRatePerKm  Decimal?     @map("deliveryRatePerKm") @db.Decimal(10, 2)
+  deliveryRadiusKm   Int?         @map("deliveryRadiusKm")
+  deliveryNotes      String?      @map("deliveryNotes")
+  pickupAddress      String?      @map("pickupAddress")
+  pickupInstructions String?      @map("pickupInstructions")
+
+  // Status
+  status        ListingStatus @default(DRAFT) @map("status")
+  averageRating Float?        @map("averageRating")
+
+  // Soft delete (never hard delete)
+  isDeleted      Boolean   @default(false) @map("isDeleted")
+  deletedAt      DateTime? @map("deletedAt")
+  deletedById    String?   @map("deletedById")
+  deletionReason String?   @map("deletionReason")
+
+  // Moderation
+  isHidden     Boolean   @default(false) @map("isHidden")
+  hiddenAt     DateTime? @map("hiddenAt")
+  hiddenById   String?   @map("hiddenById")
+  hiddenReason String?   @map("hiddenReason")
+  flagCount    Int       @default(0) @map("flagCount")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Organisation (for fleet/B2B)
+  organisationId String?       @map("organisationId")
+  organisation   Organisation? @relation("OrganisationListings", fields: [organisationId], references: [id])
+
+  // Access control
+  accessType ListingAccessType @default(PUBLIC) @map("accessType")
+
+  // Relations
+  photos            ListingPhoto[]
+  availability      ListingAvailability[]
+  bookings          Booking[]
+  reviews           Review[]
+  conversations     Conversation[]
+  auditLogs         AuditLog[]
+  checklistTemplate ChecklistTemplate?
+  pricingRules      PricingRule[]
+  accessControl     ListingAccessControl?
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([category])
+  @@index([country, region])
+  @@index([organisationId])
+  @@index([accessType])
+  @@index([averageRating])
+  @@index([isHighValue])
+  @@map("listings")
+}
+
+model ListingPhoto {
+  id        String   @id @default(cuid())
+  listingId String   @map("listingId")
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String   @map("url")
+  isPrimary Boolean  @default(false) @map("isPrimary")
+  position  Int      @default(0) @map("position")
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@unique([listingId, position])
+  @@index([listingId])
+  @@map("listing_photos")
+}
+
+model ListingAvailability {
+  id        String           @id @default(cuid())
+  listingId String           @map("listingId")
+  listing   Listing          @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  startDate DateTime         @map("startDate")
+  endDate   DateTime         @map("endDate")
+  type      AvailabilityType @map("type")
+  createdAt DateTime         @default(now()) @map("createdAt")
+
+  @@index([listingId])
+  @@index([startDate, endDate])
+  @@map("listing_availability")
+}
+
+model Booking {
+  id        String  @id @default(cuid())
+  listingId String  @map("listingId")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  renterId String @map("renterId")
+  renter   User   @relation("RenterBookings", fields: [renterId], references: [id], onDelete: Cascade)
+
+  ownerId String @map("ownerId")
+  owner   User   @relation("OwnerBookings", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Booking details
+  startDate           DateTime @map("startDate")
+  endDate             DateTime @map("endDate")
+  currency            Currency @map("currency")
+  rentalTotal         Decimal  @map("rentalTotal") @db.Decimal(10, 2)
+  bondAmountAtBooking Decimal? @map("bondAmountAtBooking") @db.Decimal(10, 2)
+
+  // Delivery details
+  isDelivery         Boolean  @default(false) @map("isDelivery")
+  deliveryAddress    String?  @map("deliveryAddress")
+  deliveryFee        Decimal? @map("deliveryFee") @db.Decimal(10, 2)
+  deliveryDistanceKm Float?   @map("deliveryDistanceKm")
+
+  // Platform fee fields (calculated at booking time)
+  rentalSubtotal    Decimal? @map("rentalSubtotal") @db.Decimal(10, 2) // rentalTotal + deliveryFee
+  platformFeeRate   Decimal? @map("platformFeeRate") @db.Decimal(5, 4) // e.g., 0.015 for 1.5%
+  platformFee       Decimal? @map("platformFee") @db.Decimal(10, 2)
+  ownerPayoutAmount Decimal? @map("ownerPayoutAmount") @db.Decimal(10, 2) // rentalSubtotal - platformFee
+  totalCharged      Decimal? @map("totalCharged") @db.Decimal(10, 2) // rentalSubtotal + platformFee + bond
+
+  // Engine hours tracking
+  engineHoursAtPickup Float? @map("engineHoursAtPickup")
+  engineHoursAtReturn Float? @map("engineHoursAtReturn")
+  engineHoursUsed     Float? @map("engineHoursUsed")
+
+  // Handover timestamps
+  actualPickupTime DateTime? @map("actualPickupTime")
+  actualReturnTime DateTime? @map("actualReturnTime")
+
+  // Status and notes
+  bookingStatus BookingStatus @default(PENDING) @map("bookingStatus")
+  ownerNotes    String?       @map("ownerNotes")
+  renterNotes   String?       @map("renterNotes")
+
+  // ============================================
+  // INSURANCE & DAMAGE SNAPSHOT (immutable at booking time)
+  // ============================================
+
+  // Insurance snapshot from listing
+  insuranceModeSnapshot             InsuranceMode? @map("insuranceModeSnapshot")
+  insuranceNotesSnapshot            String?        @map("insuranceNotesSnapshot") @db.Text
+  estimatedReplacementValueSnapshot Decimal?       @map("estimatedReplacementValueSnapshot") @db.Decimal(12, 2)
+
+  // Policy acceptance
+  platformPolicyVersionAccepted Int?    @map("platformPolicyVersionAccepted") // Version of global Insurance & Damage Policy
+  policyVersionAccepted         String? @map("policyVersionAccepted") // Legacy field
+
+  // Renter acknowledgements
+  ownerTermsAcknowledged           Boolean @default(false) @map("ownerTermsAcknowledged") // Renter accepted owner's listing-specific terms
+  renterResponsibilityAcknowledged Boolean @default(false) @map("renterResponsibilityAcknowledged") // Renter accepts damage responsibility
+
+  // Damage tracking
+  damageStatus DamageStatus @default(NONE_REPORTED) @map("damageStatus")
+
+  // Legacy field for backward compatibility
+  insuranceSnapshot Json? @map("insuranceSnapshot")
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  reviews            Review[]
+  conversation       Conversation?
+  auditLogs          AuditLog[]
+  paymentIntent      PaymentIntent?
+  bondHold           BondHold?
+  handoverChecklists HandoverChecklist[]
+  dispute            Dispute?
+  damageReports      DamageReport[]
+
+  @@index([listingId])
+  @@index([renterId])
+  @@index([ownerId])
+  @@index([bookingStatus])
+  @@index([startDate, endDate])
+  @@map("bookings")
+}
+
+model Review {
+  id        String  @id @default(cuid())
+  bookingId String  @unique @map("bookingId")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  listingId String  @map("listingId")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  authorId String @map("authorId")
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  targetType ReviewTargetType @map("targetType")
+  rating     Int              @map("rating")
+  comment    String?          @map("comment")
+
+  // Soft delete (never hard delete)
+  isDeleted      Boolean   @default(false) @map("isDeleted")
+  deletedAt      DateTime? @map("deletedAt")
+  deletedById    String?   @map("deletedById")
+  deletionReason String?   @map("deletionReason")
+
+  // Moderation
+  isHidden     Boolean   @default(false) @map("isHidden")
+  hiddenAt     DateTime? @map("hiddenAt")
+  hiddenById   String?   @map("hiddenById")
+  hiddenReason String?   @map("hiddenReason")
+  flagCount    Int       @default(0) @map("flagCount")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([listingId])
+  @@index([authorId])
+  @@index([isDeleted])
+  @@index([isHidden])
+  @@map("reviews")
+}
+
+// ============================================
+// POLICY & CONTENT MODEL (CMS-style)
+// ============================================
+
+model StaticPage {
+  id           String       @id @default(cuid())
+  slug         String       @unique @map("slug") // e.g., "insurance-and-damage-policy", "owner-responsibilities"
+  title        String       @map("title")
+  content      String       @map("content") @db.Text
+  shortSummary String?      @map("shortSummary") @db.VarChar(500) // 2-3 sentence digest
+  category     PageCategory @default(GENERAL) @map("category")
+  version      Int          @default(1) @map("version")
+  isPublished  Boolean      @default(true) @map("isPublished")
+  publishedAt  DateTime     @default(now()) @map("publishedAt")
+
+  // Metadata
+  createdById String?  @map("createdById")
+  updatedById String?  @map("updatedById")
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @updatedAt @map("updatedAt")
+
+  // Version history relation
+  versionHistory PolicyVersion[]
+
+  @@index([slug])
+  @@index([isPublished])
+  @@index([category])
+  @@map("static_pages")
+}
+
+// Policy version history for audit trail
+model PolicyVersion {
+  id     String     @id @default(cuid())
+  pageId String     @map("pageId")
+  page   StaticPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  version      Int     @map("version")
+  title        String  @map("title")
+  content      String  @map("content") @db.Text
+  shortSummary String? @map("shortSummary") @db.VarChar(500)
+
+  // Who made this version
+  createdById String?  @map("createdById")
+  createdAt   DateTime @default(now()) @map("createdAt")
+
+  // Change notes
+  changeNotes String? @map("changeNotes") @db.Text
+
+  @@unique([pageId, version])
+  @@index([pageId])
+  @@index([version])
+  @@map("policy_versions")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String           @map("userId")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @map("type")
+  payload   Json             @map("payload")
+  isRead    Boolean          @default(false) @map("isRead")
+  createdAt DateTime         @default(now()) @map("createdAt")
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  bookingId String   @unique @map("bookingId")
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  ownerId String @map("ownerId")
+  owner   User   @relation("OwnerConversations", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  renterId String @map("renterId")
+  renter   User   @relation("RenterConversations", fields: [renterId], references: [id], onDelete: Cascade)
+
+  listingId String  @map("listingId")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  // Relations
+  messages Message[]
+
+  @@index([ownerId])
+  @@index([renterId])
+  @@index([bookingId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String       @map("conversationId")
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  senderId String @map("senderId")
+  sender   User   @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  content   String   @map("content")
+  isRead    Boolean  @default(false) @map("isRead")
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// DAMAGE REPORTING SYSTEM
+// ============================================
+
+// Damage report entity
+model DamageReport {
+  id        String  @id @default(cuid())
+  bookingId String  @map("bookingId")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Who reported
+  createdById    String       @map("createdById")
+  reportedByRole ReporterRole @map("reportedByRole")
+  reportedAt     DateTime     @default(now()) @map("reportedAt")
+
+  // Damage details
+  summary             String         @map("summary") @db.VarChar(200) // Short description e.g. "Bent drawbar, cracked guard"
+  description         String         @map("description") @db.Text // Full description
+  estimatedRepairCost Decimal?       @map("estimatedRepairCost") @db.Decimal(10, 2)
+  reportedSeverity    DamageSeverity @map("reportedSeverity")
+
+  // Status tracking
+  status DamageReportStatus @default(OPEN) @map("status")
+
+  // Admin review
+  reviewedById String?   @map("reviewedById")
+  reviewedAt   DateTime? @map("reviewedAt")
+  adminNotes   String?   @map("adminNotes") @db.Text
+
+  // Resolution
+  bondAmountApplied Decimal?  @map("bondAmountApplied") @db.Decimal(10, 2)
+  resolvedAt        DateTime? @map("resolvedAt")
+  resolutionNotes   String?   @map("resolutionNotes") @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  photos DamageReportPhoto[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([reportedByRole])
+  @@index([reportedSeverity])
+  @@index([createdAt])
+  @@map("damage_reports")
+}
+
+// Photos attached to damage reports
+model DamageReportPhoto {
+  id             String       @id @default(cuid())
+  damageReportId String       @map("damageReportId")
+  damageReport   DamageReport @relation(fields: [damageReportId], references: [id], onDelete: Cascade)
+
+  url         String       @map("url")
+  caption     String?      @map("caption") @db.VarChar(500)
+  takenByRole ReporterRole @map("takenByRole")
+  takenAt     DateTime?    @map("takenAt") // When photo was taken (from EXIF or user input)
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([damageReportId])
+  @@map("damage_report_photos")
+}
+
+// ============================================
+// VERIFICATION & TRUST SYSTEM
+// ============================================
+
+model VerificationRequest {
+  id     String @id @default(cuid())
+  userId String @map("userId")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Document details
+  documentType   VerificationDocType @map("documentType")
+  documentNumber String?             @map("documentNumber")
+  documentExpiry DateTime?           @map("documentExpiry")
+  documentUrl    String              @map("documentUrl")
+  additionalUrls String[]            @map("additionalUrls")
+
+  // Request status
+  status      VerificationStatus @default(PENDING) @map("status")
+  submittedAt DateTime           @default(now()) @map("submittedAt")
+  reviewedAt  DateTime?          @map("reviewedAt")
+  reviewedBy  String?            @map("reviewedBy")
+
+  // Review notes
+  reviewNotes     String? @map("reviewNotes")
+  rejectionReason String? @map("rejectionReason")
+
+  // For equipment ownership verification
+  listingId String? @map("listingId")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([userId])
+  @@index([status])
+  @@index([documentType])
+  @@index([submittedAt])
+  @@map("verification_requests")
+}
+
+// ============================================
+// AUDIT TRAIL SYSTEM
+// ============================================
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Action details
+  action      AuditAction @map("action")
+  description String      @map("description")
+
+  // Actor (who performed the action)
+  actorId    String?   @map("actorId")
+  actor      User?     @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String?   @map("actorEmail") // Preserved even if user deleted
+  actorRole  UserRole? @map("actorRole")
+
+  // Target entity
+  targetType String @map("targetType") // 'User', 'Listing', 'Booking', 'Review', 'Policy'
+  targetId   String @map("targetId")
+
+  // For user-related actions
+  targetUserId String? @map("targetUserId")
+  targetUser   User?   @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  // For listing-related actions
+  listingId String?  @map("listingId")
+  listing   Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  // For booking-related actions
+  bookingId String?  @map("bookingId")
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  // Change details
+  previousValue Json? @map("previousValue")
+  newValue      Json? @map("newValue")
+  metadata      Json? @map("metadata") // Additional context
+
+  // Request context
+  ipAddress String? @map("ipAddress")
+  userAgent String? @map("userAgent")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([action])
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@index([targetUserId])
+  @@index([listingId])
+  @@index([bookingId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// HIGH-VALUE THRESHOLDS CONFIG
+// ============================================
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique @map("key")
+  value       Json     @map("value")
+  description String?  @map("description")
+  updatedBy   String?  @map("updatedBy")
+  createdAt   DateTime @default(now()) @map("createdAt")
+  updatedAt   DateTime @updatedAt @map("updatedAt")
+
+  @@map("system_config")
+}
+
+// ============================================
+// PAYMENT & FINANCIAL SYSTEM
+// ============================================
+
+// Payment status for tracking payment lifecycle
+enum PaymentStatus {
+  PENDING // Payment intent created, awaiting payment
+  PROCESSING // Payment is being processed
+  SUCCEEDED // Payment completed successfully
+  FAILED // Payment failed
+  CANCELLED // Payment was cancelled
+  REFUNDED // Full refund issued
+  PARTIALLY_REFUNDED // Partial refund issued
+}
+
+// Bond status for tracking bond lifecycle
+enum BondStatus {
+  AUTHORIZED // Bond amount authorized (hold placed)
+  CAPTURED // Bond captured (damage reported)
+  PARTIALLY_CAPTURED // Part of bond captured
+  RELEASED // Bond released back to renter
+  EXPIRED // Authorization expired
+  FAILED // Authorization failed
+}
+
+// Payout status
+enum PayoutStatus {
+  PENDING // Payout scheduled
+  PROCESSING // Payout being processed
+  COMPLETED // Payout sent successfully
+  FAILED // Payout failed
+  CANCELLED // Payout cancelled
+}
+
+// Transaction types for ledger
+enum TransactionType {
+  RENTAL_PAYMENT // Renter pays for rental
+  PLATFORM_FEE // Platform commission deducted
+  BOND_AUTHORIZATION // Bond hold placed
+  BOND_CAPTURE // Bond captured for damage
+  BOND_RELEASE // Bond released
+  OWNER_PAYOUT // Payout to owner
+  REFUND // Refund to renter
+  ADJUSTMENT // Manual adjustment
+}
+
+// Owner's connected bank account for payouts
+model OwnerPayoutAccount {
+  id     String @id @default(cuid())
+  userId String @unique @map("userId")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Stripe Connect account
+  stripeAccountId          String? @unique @map("stripeAccountId")
+  stripeAccountStatus      String? @map("stripeAccountStatus") // 'pending', 'active', 'restricted'
+  stripeOnboardingComplete Boolean @default(false) @map("stripeOnboardingComplete")
+
+  // Bank account details (for display only, actual details in Stripe)
+  bankName          String? @map("bankName")
+  accountLastFour   String? @map("accountLastFour")
+  accountHolderName String? @map("accountHolderName")
+
+  // Payout preferences
+  payoutSchedule      String  @default("weekly") @map("payoutSchedule") // 'daily', 'weekly', 'monthly', 'manual'
+  minimumPayoutAmount Decimal @default(50) @map("minimumPayoutAmount") @db.Decimal(10, 2)
+
+  // Verification
+  isVerified Boolean   @default(false) @map("isVerified")
+  verifiedAt DateTime? @map("verifiedAt")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  payouts Payout[]
+
+  @@index([stripeAccountId])
+  @@map("owner_payout_accounts")
+}
+
+// Payment intent for a booking (rental + bond)
+model PaymentIntent {
+  id        String  @id @default(cuid())
+  bookingId String  @unique @map("bookingId")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Stripe payment intent
+  stripePaymentIntentId String? @unique @map("stripePaymentIntentId")
+  stripeClientSecret    String? @map("stripeClientSecret")
+
+  // Amounts (all in booking currency)
+  currency           Currency @map("currency")
+  rentalAmount       Decimal  @map("rentalAmount") @db.Decimal(10, 2)
+  platformFeeAmount  Decimal  @map("platformFeeAmount") @db.Decimal(10, 2)
+  platformFeePercent Decimal  @map("platformFeePercent") @db.Decimal(5, 2)
+  ownerAmount        Decimal  @map("ownerAmount") @db.Decimal(10, 2) // rentalAmount - platformFee
+  totalAmount        Decimal  @map("totalAmount") @db.Decimal(10, 2) // What renter pays (rental only, bond separate)
+
+  // Status
+  status        PaymentStatus @default(PENDING) @map("status")
+  paidAt        DateTime?     @map("paidAt")
+  failedAt      DateTime?     @map("failedAt")
+  failureReason String?       @map("failureReason")
+
+  // Escrow state - funds held until rental starts/completes
+  isInEscrow       Boolean   @default(false) @map("isInEscrow")
+  escrowReleasedAt DateTime? @map("escrowReleasedAt")
+
+  // Refund tracking
+  refundedAmount Decimal @default(0) @map("refundedAmount") @db.Decimal(10, 2)
+  refundReason   String? @map("refundReason")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  transactions Transaction[]
+
+  @@index([stripePaymentIntentId])
+  @@index([status])
+  @@index([isInEscrow])
+  @@map("payment_intents")
+}
+
+// Bond hold for a booking
+model BondHold {
+  id        String  @id @default(cuid())
+  bookingId String  @unique @map("bookingId")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Stripe setup intent / payment method for bond
+  stripeSetupIntentId   String? @unique @map("stripeSetupIntentId")
+  stripePaymentMethodId String? @map("stripePaymentMethodId")
+  stripePaymentIntentId String? @map("stripePaymentIntentId") // For capture
+
+  // Amounts
+  currency         Currency @map("currency")
+  authorizedAmount Decimal  @map("authorizedAmount") @db.Decimal(10, 2)
+  capturedAmount   Decimal  @default(0) @map("capturedAmount") @db.Decimal(10, 2)
+  releasedAmount   Decimal  @default(0) @map("releasedAmount") @db.Decimal(10, 2)
+
+  // Status
+  status       BondStatus @default(AUTHORIZED) @map("status")
+  authorizedAt DateTime?  @map("authorizedAt")
+  expiresAt    DateTime?  @map("expiresAt") // Authorization expiry
+  capturedAt   DateTime?  @map("capturedAt")
+  releasedAt   DateTime?  @map("releasedAt")
+
+  // Damage/capture details
+  captureReason   String?  @map("captureReason")
+  captureNotes    String?  @map("captureNotes")
+  capturedBy      String?  @map("capturedBy") // Admin who captured
+  damageReportUrl String?  @map("damageReportUrl")
+  damagePhotos    String[] @map("damagePhotos")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  transactions Transaction[]
+
+  @@index([stripeSetupIntentId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("bond_holds")
+}
+
+// Financial transaction ledger
+model Transaction {
+  id String @id @default(cuid())
+
+  // Type and reference
+  type          TransactionType @map("type")
+  referenceId   String          @map("referenceId") // bookingId, payoutId, etc.
+  referenceType String          @map("referenceType") // 'Booking', 'Payout', 'Refund'
+
+  // Amounts
+  currency Currency @map("currency")
+  amount   Decimal  @map("amount") @db.Decimal(10, 2)
+
+  // Parties involved
+  fromUserId String? @map("fromUserId") // Renter for payments
+  toUserId   String? @map("toUserId") // Owner for payouts, Platform for fees
+
+  // Stripe references
+  stripeTransferId String? @map("stripeTransferId")
+  stripeChargeId   String? @map("stripeChargeId")
+
+  // Relations to payment entities
+  paymentIntentId String?        @map("paymentIntentId")
+  paymentIntent   PaymentIntent? @relation(fields: [paymentIntentId], references: [id], onDelete: SetNull)
+
+  bondHoldId String?   @map("bondHoldId")
+  bondHold   BondHold? @relation(fields: [bondHoldId], references: [id], onDelete: SetNull)
+
+  payoutId String? @map("payoutId")
+  payout   Payout? @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+
+  // Description and metadata
+  description String @map("description")
+  metadata    Json?  @map("metadata")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([type])
+  @@index([referenceId, referenceType])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([paymentIntentId])
+  @@index([bondHoldId])
+  @@index([payoutId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// Payout to owner
+model Payout {
+  id String @id @default(cuid())
+
+  // Owner receiving payout
+  ownerPayoutAccountId String             @map("ownerPayoutAccountId")
+  ownerPayoutAccount   OwnerPayoutAccount @relation(fields: [ownerPayoutAccountId], references: [id], onDelete: Cascade)
+
+  // Stripe payout
+  stripePayoutId   String? @unique @map("stripePayoutId")
+  stripeTransferId String? @map("stripeTransferId")
+
+  // Amounts
+  currency     Currency @map("currency")
+  grossAmount  Decimal  @map("grossAmount") @db.Decimal(10, 2) // Total rental earnings
+  platformFees Decimal  @map("platformFees") @db.Decimal(10, 2) // Fees deducted
+  netAmount    Decimal  @map("netAmount") @db.Decimal(10, 2) // Amount paid out
+
+  // Period covered
+  periodStart  DateTime @map("periodStart")
+  periodEnd    DateTime @map("periodEnd")
+  bookingCount Int      @map("bookingCount")
+
+  // Status
+  status        PayoutStatus @default(PENDING) @map("status")
+  scheduledAt   DateTime?    @map("scheduledAt")
+  processedAt   DateTime?    @map("processedAt")
+  completedAt   DateTime?    @map("completedAt")
+  failedAt      DateTime?    @map("failedAt")
+  failureReason String?      @map("failureReason")
+
+  // Metadata
+  notes String? @map("notes")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  transactions Transaction[]
+  payoutItems  PayoutItem[]
+
+  @@index([ownerPayoutAccountId])
+  @@index([stripePayoutId])
+  @@index([status])
+  @@index([periodStart, periodEnd])
+  @@map("payouts")
+}
+
+// Individual booking included in a payout
+model PayoutItem {
+  id       String @id @default(cuid())
+  payoutId String @map("payoutId")
+  payout   Payout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+
+  bookingId String @map("bookingId")
+
+  // Amounts for this booking
+  grossAmount Decimal @map("grossAmount") @db.Decimal(10, 2)
+  platformFee Decimal @map("platformFee") @db.Decimal(10, 2)
+  netAmount   Decimal @map("netAmount") @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([payoutId])
+  @@index([bookingId])
+  @@map("payout_items")
+}
+
+// ============================================
+// LOGISTICS & HANDOVER SYSTEM
+// ============================================
+
+// Checklist template configured by owner for a listing
+model ChecklistTemplate {
+  id        String  @id @default(cuid())
+  listingId String  @unique @map("listingId")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Template name
+  name String @default("Default Checklist") @map("name")
+
+  // Whether this template is active
+  isActive Boolean @default(true) @map("isActive")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  items ChecklistTemplateItem[]
+
+  @@index([listingId])
+  @@map("checklist_templates")
+}
+
+// Individual item in a checklist template
+model ChecklistTemplateItem {
+  id         String            @id @default(cuid())
+  templateId String            @map("templateId")
+  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // Item details
+  label       String            @map("label")
+  description String?           @map("description")
+  itemType    ChecklistItemType @map("itemType")
+
+  // For pickup, return, or both
+  forPickup Boolean @default(true) @map("forPickup")
+  forReturn Boolean @default(true) @map("forReturn")
+
+  // Is this item required?
+  isRequired Boolean @default(true) @map("isRequired")
+
+  // Display order
+  position Int @default(0) @map("position")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@unique([templateId, position])
+  @@index([templateId])
+  @@map("checklist_template_items")
+}
+
+// Completed handover checklist for a booking
+model HandoverChecklist {
+  id        String  @id @default(cuid())
+  bookingId String  @map("bookingId")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Type of handover
+  handoverType HandoverType @map("handoverType")
+
+  // Who completed this checklist
+  completedById   String @map("completedById")
+  completedByRole String @map("completedByRole") // 'OWNER' or 'RENTER'
+
+  // Overall notes
+  notes         String?  @map("notes")
+  overallPhotos String[] @map("overallPhotos")
+
+  // Signature (base64 or URL)
+  signature String? @map("signature")
+
+  // GPS location at handover
+  latitude  Float? @map("latitude")
+  longitude Float? @map("longitude")
+
+  // Timestamps
+  completedAt DateTime @default(now()) @map("completedAt")
+  createdAt   DateTime @default(now()) @map("createdAt")
+
+  // Relations
+  items HandoverChecklistItem[]
+
+  @@unique([bookingId, handoverType, completedByRole])
+  @@index([bookingId])
+  @@index([handoverType])
+  @@map("handover_checklists")
+}
+
+// Individual item response in a handover checklist
+model HandoverChecklistItem {
+  id          String            @id @default(cuid())
+  checklistId String            @map("checklistId")
+  checklist   HandoverChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  // Reference to template item (optional, for traceability)
+  templateItemId String? @map("templateItemId")
+
+  // Item details (copied from template at time of completion)
+  label    String            @map("label")
+  itemType ChecklistItemType @map("itemType")
+
+  // Response values (depending on itemType)
+  checkboxValue Boolean? @map("checkboxValue")
+  numberValue   Float?   @map("numberValue")
+  textValue     String?  @map("textValue")
+  ratingValue   Int?     @map("ratingValue")
+  photoUrls     String[] @map("photoUrls")
+
+  // Notes for this specific item
+  notes String? @map("notes")
+
+  // Flag if issue found
+  hasIssue         Boolean @default(false) @map("hasIssue")
+  issueDescription String? @map("issueDescription")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([checklistId])
+  @@map("handover_checklist_items")
+}
+
+// Dispute raised on a booking
+model Dispute {
+  id        String  @id @default(cuid())
+  bookingId String  @unique @map("bookingId")
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  // Who raised the dispute
+  raisedById   String @map("raisedById")
+  raisedByRole String @map("raisedByRole") // 'OWNER' or 'RENTER'
+
+  // Dispute details
+  reason       String   @map("reason")
+  description  String   @map("description")
+  evidenceUrls String[] @map("evidenceUrls")
+
+  // Claimed amount (if financial)
+  claimedAmount Decimal? @map("claimedAmount") @db.Decimal(10, 2)
+
+  // Status
+  status DisputeStatus @default(OPEN) @map("status")
+
+  // Resolution
+  resolvedAt      DateTime? @map("resolvedAt")
+  resolvedById    String?   @map("resolvedById")
+  resolution      String?   @map("resolution")
+  resolutionNotes String?   @map("resolutionNotes")
+  finalAmount     Decimal?  @map("finalAmount") @db.Decimal(10, 2)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  responses DisputeResponse[]
+
+  @@index([bookingId])
+  @@index([status])
+  @@index([raisedById])
+  @@map("disputes")
+}
+
+// Response/comment on a dispute
+model DisputeResponse {
+  id        String  @id @default(cuid())
+  disputeId String  @map("disputeId")
+  dispute   Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  // Who responded
+  responderId   String @map("responderId")
+  responderRole String @map("responderRole") // 'OWNER', 'RENTER', 'ADMIN'
+
+  // Response content
+  content        String   @map("content")
+  attachmentUrls String[] @map("attachmentUrls")
+
+  // Is this an internal admin note?
+  isInternal Boolean @default(false) @map("isInternal")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([disputeId])
+  @@index([responderId])
+  @@map("dispute_responses")
+}
+
+// ============================================
+// SMART PRICING & AVAILABILITY INTELLIGENCE
+// ============================================
+
+// Pricing rule type
+enum PricingRuleType {
+  SEASONAL // Date range multiplier (e.g., harvest season)
+  DAY_OF_WEEK // Weekend vs weekday
+  MINIMUM_DURATION // Discount for longer rentals
+  LAST_MINUTE // Discount for bookings starting soon
+  EARLY_BIRD // Discount for advance bookings
+  DEMAND_SURGE // Auto-increase when high demand (future)
+}
+
+// Pricing rule for a listing
+model PricingRule {
+  id        String  @id @default(cuid())
+  listingId String  @map("listingId")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Rule details
+  name        String          @map("name")
+  description String?         @map("description")
+  ruleType    PricingRuleType @map("ruleType")
+
+  // Multiplier (1.0 = no change, 1.2 = 20% increase, 0.9 = 10% discount)
+  multiplier Decimal @map("multiplier") @db.Decimal(4, 2)
+
+  // For SEASONAL rules: date range
+  startDate DateTime? @map("startDate")
+  endDate   DateTime? @map("endDate")
+
+  // For DAY_OF_WEEK rules: which days (0=Sun, 1=Mon, ..., 6=Sat)
+  daysOfWeek Int[] @map("daysOfWeek")
+
+  // For MINIMUM_DURATION rules: minimum days
+  minimumDays Int? @map("minimumDays")
+
+  // For LAST_MINUTE/EARLY_BIRD: days threshold
+  daysThreshold Int? @map("daysThreshold")
+
+  // Priority (higher = applied first when multiple rules match)
+  priority Int @default(0) @map("priority")
+
+  // Is this rule active?
+  isActive Boolean @default(true) @map("isActive")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([listingId])
+  @@index([ruleType])
+  @@index([isActive])
+  @@map("pricing_rules")
+}
+
+// Seasonal pricing preset (admin-defined templates)
+model SeasonalPreset {
+  id String @id @default(cuid())
+
+  // Preset details
+  name        String  @map("name")
+  description String? @map("description")
+
+  // Region/category targeting
+  country  Country?         @map("country")
+  region   String?          @map("region")
+  category ListingCategory? @map("category")
+
+  // Season dates (month-day format for recurring)
+  startMonth Int @map("startMonth") // 1-12
+  startDay   Int @map("startDay") // 1-31
+  endMonth   Int @map("endMonth")
+  endDay     Int @map("endDay")
+
+  // Suggested multiplier
+  suggestedMultiplier Decimal @map("suggestedMultiplier") @db.Decimal(4, 2)
+
+  // Is this a peak or off-peak season?
+  isPeak Boolean @default(true) @map("isPeak")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([country, region])
+  @@index([category])
+  @@map("seasonal_presets")
+}
+
+// Daily utilisation snapshot for analytics
+model UtilisationSnapshot {
+  id        String @id @default(cuid())
+  listingId String @map("listingId")
+
+  // Snapshot date
+  date DateTime @map("date") @db.Date
+
+  // Metrics
+  isBooked    Boolean @default(false) @map("isBooked")
+  isAvailable Boolean @default(true) @map("isAvailable")
+  bookingId   String? @map("bookingId")
+
+  // Price that day (for revenue analysis)
+  dailyRate    Decimal? @map("dailyRate") @db.Decimal(10, 2)
+  appliedRules String[] @map("appliedRules") // Rule IDs that affected price
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@unique([listingId, date])
+  @@index([listingId])
+  @@index([date])
+  @@index([isBooked])
+  @@map("utilisation_snapshots")
+}
+
+// Aggregated utilisation metrics (monthly rollup)
+model UtilisationMetrics {
+  id        String @id @default(cuid())
+  listingId String @map("listingId")
+
+  // Period
+  year  Int @map("year")
+  month Int @map("month")
+
+  // Metrics
+  totalDays     Int @map("totalDays")
+  bookedDays    Int @map("bookedDays")
+  availableDays Int @map("availableDays")
+  blockedDays   Int @map("blockedDays")
+
+  // Utilisation percentage
+  utilisationRate Decimal @map("utilisationRate") @db.Decimal(5, 2)
+
+  // Revenue metrics
+  totalRevenue     Decimal @map("totalRevenue") @db.Decimal(12, 2)
+  averageDailyRate Decimal @map("averageDailyRate") @db.Decimal(10, 2)
+
+  // Booking metrics
+  bookingCount         Int     @map("bookingCount")
+  averageBookingLength Decimal @map("averageBookingLength") @db.Decimal(4, 1)
+
+  // Demand indicators
+  enquiryCount Int @default(0) @map("enquiryCount")
+  viewCount    Int @default(0) @map("viewCount")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@unique([listingId, year, month])
+  @@index([listingId])
+  @@index([year, month])
+  @@map("utilisation_metrics")
+}
+
+// Pricing suggestion generated by the system
+model PricingSuggestion {
+  id        String @id @default(cuid())
+  listingId String @map("listingId")
+
+  // Suggestion details
+  suggestionType String @map("suggestionType") // 'increase', 'decrease', 'seasonal', 'weekend'
+  title          String @map("title")
+  description    String @map("description")
+
+  // Suggested change
+  currentRate   Decimal @map("currentRate") @db.Decimal(10, 2)
+  suggestedRate Decimal @map("suggestedRate") @db.Decimal(10, 2)
+  changePercent Decimal @map("changePercent") @db.Decimal(5, 2)
+
+  // Reasoning/data points
+  reasoning Json @map("reasoning")
+
+  // Confidence score (0-100)
+  confidence Int @map("confidence")
+
+  // Period this applies to
+  applicablePeriod String? @map("applicablePeriod")
+
+  // Status
+  status      String    @default("pending") @map("status") // 'pending', 'accepted', 'dismissed'
+  respondedAt DateTime? @map("respondedAt")
+
+  // Validity
+  expiresAt DateTime @map("expiresAt")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([listingId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("pricing_suggestions")
+}
+
+// Regional demand data (for market intelligence)
+model RegionalDemand {
+  id String @id @default(cuid())
+
+  // Location
+  country Country @map("country")
+  region  String  @map("region")
+
+  // Category
+  category ListingCategory @map("category")
+
+  // Period
+  year  Int @map("year")
+  month Int @map("month")
+
+  // Demand metrics
+  totalListings  Int     @map("totalListings")
+  totalBookings  Int     @map("totalBookings")
+  totalEnquiries Int     @map("totalEnquiries")
+  averageRate    Decimal @map("averageRate") @db.Decimal(10, 2)
+
+  // Demand score (0-100, calculated)
+  demandScore Int @map("demandScore")
+
+  // Year-over-year change
+  yoyChange Decimal? @map("yoyChange") @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@unique([country, region, category, year, month])
+  @@index([country, region])
+  @@index([category])
+  @@index([year, month])
+  @@map("regional_demand")
+}
+
+// ============================================
+// MARKETING & GROWTH
+// ============================================
+
+// Referral program
+model Referral {
+  id String @id @default(cuid())
+
+  // Referrer (existing user)
+  referrerId String @map("referrerId")
+  referrer   User   @relation("ReferralsMade", fields: [referrerId], references: [id])
+
+  // Referred user (new signup)
+  referredId String? @map("referredId")
+  referred   User?   @relation("ReferralsReceived", fields: [referredId], references: [id])
+
+  // Referral code used
+  referralCode String @map("referralCode")
+
+  // Status
+  status ReferralStatus @default(PENDING) @map("status")
+
+  // Reward tracking
+  referrerRewardAmount Decimal? @map("referrerRewardAmount") @db.Decimal(10, 2)
+  referredRewardAmount Decimal? @map("referredRewardAmount") @db.Decimal(10, 2)
+  currency             Currency @default(NZD) @map("currency")
+
+  // Qualifying booking (triggers reward)
+  qualifyingBookingId String? @map("qualifyingBookingId")
+
+  // Reward status
+  referrerRewardPaid Boolean   @default(false) @map("referrerRewardPaid")
+  referredRewardPaid Boolean   @default(false) @map("referredRewardPaid")
+  rewardPaidAt       DateTime? @map("rewardPaidAt")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([referrerId])
+  @@index([referredId])
+  @@index([referralCode])
+  @@index([status])
+  @@map("referrals")
+}
+
+enum ReferralStatus {
+  PENDING // Referral link shared, no signup yet
+  SIGNED_UP // Referred user signed up
+  BOOKING_MADE // Referred user made first booking
+  REWARD_EARNED // Booking completed, reward earned
+  REWARD_PAID // Reward credited to accounts
+  EXPIRED // Referral expired without conversion
+}
+
+// User referral codes
+model ReferralCode {
+  id     String @id @default(cuid())
+  userId String @map("userId")
+
+  // The unique code
+  code String @unique @map("code")
+
+  // Custom vanity code (optional)
+  vanityCode String? @unique @map("vanityCode")
+
+  // Stats
+  timesUsed     Int     @default(0) @map("timesUsed")
+  totalEarnings Decimal @default(0) @map("totalEarnings") @db.Decimal(12, 2)
+
+  // Is this code active?
+  isActive Boolean @default(true) @map("isActive")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([userId])
+  @@index([code])
+  @@map("referral_codes")
+}
+
+// Promotion/discount codes
+model PromotionCode {
+  id String @id @default(cuid())
+
+  // Code details
+  code        String  @unique @map("code")
+  name        String  @map("name")
+  description String? @map("description")
+
+  // Scope: platform-wide or owner-specific
+  scope     PromotionScope @map("scope")
+  ownerId   String?        @map("ownerId") // If owner-specific
+  listingId String?        @map("listingId") // If listing-specific
+
+  // Discount type
+  discountType  DiscountType @map("discountType")
+  discountValue Decimal      @map("discountValue") @db.Decimal(10, 2) // Percentage or fixed amount
+  currency      Currency     @default(NZD) @map("currency")
+
+  // Constraints
+  minimumOrderValue Decimal? @map("minimumOrderValue") @db.Decimal(10, 2)
+  maximumDiscount   Decimal? @map("maximumDiscount") @db.Decimal(10, 2) // Cap for percentage discounts
+  minimumDays       Int?     @map("minimumDays")
+
+  // Usage limits
+  maxUses        Int? @map("maxUses") // Total uses allowed
+  maxUsesPerUser Int  @default(1) @map("maxUsesPerUser")
+  currentUses    Int  @default(0) @map("currentUses")
+
+  // Validity period
+  validFrom  DateTime @map("validFrom")
+  validUntil DateTime @map("validUntil")
+
+  // Targeting
+  newUsersOnly Boolean  @default(false) @map("newUsersOnly")
+  categories   String[] @map("categories") // Empty = all categories
+  countries    String[] @map("countries") // Empty = all countries
+
+  // Status
+  isActive Boolean @default(true) @map("isActive")
+
+  // Tracking
+  redemptions PromotionRedemption[]
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([code])
+  @@index([ownerId])
+  @@index([scope])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+  @@map("promotion_codes")
+}
+
+enum PromotionScope {
+  PLATFORM // Platform-wide promotion (admin only)
+  OWNER // Owner's promotion for their listings
+  LISTING // Specific listing only
+}
+
+enum DiscountType {
+  PERCENTAGE // e.g., 10% off
+  FIXED_AMOUNT // e.g., $50 off
+}
+
+// Track promotion code usage
+model PromotionRedemption {
+  id String @id @default(cuid())
+
+  promotionCodeId String        @map("promotionCodeId")
+  promotionCode   PromotionCode @relation(fields: [promotionCodeId], references: [id])
+
+  userId    String @map("userId")
+  bookingId String @map("bookingId")
+
+  // Discount applied
+  discountAmount Decimal  @map("discountAmount") @db.Decimal(10, 2)
+  currency       Currency @map("currency")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([promotionCodeId])
+  @@index([userId])
+  @@index([bookingId])
+  @@map("promotion_redemptions")
+}
+
+// User credit balance (for referral rewards, etc.)
+model UserCredit {
+  id     String @id @default(cuid())
+  userId String @map("userId")
+
+  // Credit details
+  amount   Decimal  @map("amount") @db.Decimal(10, 2)
+  currency Currency @map("currency")
+
+  // Source
+  sourceType  CreditSourceType @map("sourceType")
+  sourceId    String?          @map("sourceId") // Referral ID, promotion ID, etc.
+  description String           @map("description")
+
+  // Expiry
+  expiresAt DateTime? @map("expiresAt")
+
+  // Usage
+  usedAmount      Decimal   @default(0) @map("usedAmount") @db.Decimal(10, 2)
+  usedAt          DateTime? @map("usedAt")
+  usedOnBookingId String?   @map("usedOnBookingId")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([userId])
+  @@index([sourceType])
+  @@index([expiresAt])
+  @@map("user_credits")
+}
+
+enum CreditSourceType {
+  REFERRAL_BONUS // Earned from referring someone
+  REFERRAL_WELCOME // Welcome credit for being referred
+  PROMOTION // Platform promotion
+  COMPENSATION // Customer service compensation
+  MANUAL // Manually added by admin
+}
+
+// SEO landing page content
+model LandingPage {
+  id String @id @default(cuid())
+
+  // URL slug (e.g., "tractor-hire-canterbury-nz")
+  slug String @unique @map("slug")
+
+  // Page type
+  pageType LandingPageType @map("pageType")
+
+  // Targeting
+  category ListingCategory? @map("category")
+  country  Country?         @map("country")
+  region   String?          @map("region")
+
+  // SEO metadata
+  title           String @map("title")
+  metaDescription String @map("metaDescription") @db.Text
+  h1              String @map("h1")
+
+  // Content
+  introText   String? @map("introText") @db.Text
+  bodyContent String? @map("bodyContent") @db.Text
+
+  // Structured data
+  structuredData Json? @map("structuredData")
+
+  // Stats (for display)
+  listingCount Int      @default(0) @map("listingCount")
+  averagePrice Decimal? @map("averagePrice") @db.Decimal(10, 2)
+
+  // Status
+  isPublished Boolean @default(true) @map("isPublished")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([slug])
+  @@index([pageType])
+  @@index([category])
+  @@index([country, region])
+  @@map("landing_pages")
+}
+
+enum LandingPageType {
+  CATEGORY // e.g., "Tractor Hire"
+  REGION // e.g., "Canterbury Equipment Rental"
+  CATEGORY_REGION // e.g., "Tractor Hire in Canterbury"
+  CUSTOM // Custom marketing page
+}
+
+// ============================================
+// WHITE-LABEL / FLEET PARTNER MODE
+// ============================================
+
+// Organisation entity for B2B partners
+model Organisation {
+  id String @id @default(cuid())
+
+  // Basic info
+  name String           @map("name")
+  slug String           @unique @map("slug") // URL-friendly identifier
+  type OrganisationType @map("type")
+
+  // Contact
+  email   String  @map("email")
+  phone   String? @map("phone")
+  website String? @map("website")
+
+  // Address
+  address String? @map("address")
+  country Country @map("country")
+  region  String  @map("region")
+
+  // Business details
+  businessNumber String? @map("businessNumber") // GST/ABN
+
+  // Branding overrides
+  logoUrl        String? @map("logoUrl")
+  primaryColor   String? @map("primaryColor") // Hex color
+  secondaryColor String? @map("secondaryColor")
+  accentColor    String? @map("accentColor")
+  customDomain   String? @unique @map("customDomain") // e.g., fleet.acmecontractors.com
+
+  // Settings
+  settings Json? @map("settings") // Additional config
+
+  // Subscription/billing
+  subscriptionTier   OrganisationTier   @default(STARTER) @map("subscriptionTier")
+  subscriptionStatus SubscriptionStatus @default(ACTIVE) @map("subscriptionStatus")
+  billingEmail       String?            @map("billingEmail")
+
+  // Limits
+  maxMembers  Int @default(10) @map("maxMembers")
+  maxListings Int @default(50) @map("maxListings")
+
+  // Status
+  isActive   Boolean   @default(true) @map("isActive")
+  isVerified Boolean   @default(false) @map("isVerified")
+  verifiedAt DateTime? @map("verifiedAt")
+
+  // Relations
+  members              OrganisationMember[]
+  listings             Listing[]                @relation("OrganisationListings")
+  organisationListings OrganisationListing[]
+  invitations          OrganisationInvitation[]
+  inviteLinks          OrganisationInviteLink[]
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([slug])
+  @@index([type])
+  @@index([country, region])
+  @@map("organisations")
+}
+
+enum OrganisationType {
+  CONTRACTOR // Contracting business
+  DEALERSHIP // Equipment dealer
+  FINANCE_COMPANY // Finance/leasing company
+  COOPERATIVE // Farming cooperative
+  GOVERNMENT // Government/council
+  OTHER // Other B2B
+}
+
+enum OrganisationTier {
+  STARTER // Basic features, limited listings
+  PROFESSIONAL // More listings, basic branding
+  ENTERPRISE // Full white-label, custom domain
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIAL
+}
+
+// Organisation membership
+model OrganisationMember {
+  id String @id @default(cuid())
+
+  organisationId String       @map("organisationId")
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  userId String @map("userId")
+
+  // Role within organisation
+  role OrganisationRole @map("role")
+
+  // Permissions (JSON for flexibility)
+  permissions Json? @map("permissions")
+
+  // Status
+  isActive Boolean @default(true) @map("isActive")
+
+  // Invitation tracking
+  invitedBy  String?   @map("invitedBy")
+  invitedAt  DateTime? @map("invitedAt")
+  acceptedAt DateTime? @map("acceptedAt")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@unique([organisationId, userId])
+  @@index([organisationId])
+  @@index([userId])
+  @@map("organisation_members")
+}
+
+enum OrganisationRole {
+  OWNER // Full control, billing
+  ADMIN // Manage members, listings
+  MANAGER // Manage listings, view reports
+  OPERATOR // View and operate equipment
+  VIEWER // Read-only access
+}
+
+// Invite links for organisations
+model OrganisationInviteLink {
+  id String @id @default(cuid())
+
+  organisationId String       @map("organisationId")
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  // Invite code
+  code String @unique @map("code")
+
+  // What role will invitees get?
+  defaultRole OrganisationRole @map("defaultRole")
+
+  // Usage limits
+  maxUses     Int? @map("maxUses")
+  currentUses Int  @default(0) @map("currentUses")
+
+  // Validity
+  expiresAt DateTime? @map("expiresAt")
+
+  // Status
+  isActive Boolean @default(true) @map("isActive")
+
+  createdBy String   @map("createdBy")
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([organisationId])
+  @@index([code])
+  @@map("organisation_invite_links")
+}
+
+// Private listing access control
+model ListingAccessControl {
+  id String @id @default(cuid())
+
+  listingId String  @map("listingId")
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Access type
+  accessType ListingAccessType @map("accessType")
+
+  // For ORG_ONLY: which org?
+  organisationId String? @map("organisationId")
+
+  // For INVITE_ONLY: invite code
+  inviteCode        String?   @unique @map("inviteCode")
+  inviteCodeExpiry  DateTime? @map("inviteCodeExpiry")
+  inviteCodeMaxUses Int?      @map("inviteCodeMaxUses")
+  inviteCodeUses    Int       @default(0) @map("inviteCodeUses")
+
+  // For USER_LIST: specific users
+  allowedUserIds String[] @map("allowedUserIds")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@unique([listingId])
+  @@index([organisationId])
+  @@index([inviteCode])
+  @@map("listing_access_controls")
+}
+
+enum ListingAccessType {
+  PUBLIC // Anyone can view/book
+  ORG_ONLY // Only organisation members
+  INVITE_ONLY // Only via invite link
+  USER_LIST // Specific allowed users
+  UNLISTED // Not in search, direct link only
+}
+
+// ============================================
+// DISPUTE MANAGEMENT & SUPPORT TOOLING
+// ============================================
+
+// Duplicate DisputeCase removed - using definition from earlier in schema
+
+// Duplicate enums removed - using definitions from earlier in schema
+
+enum DisputePriority {
+  LOW // Minor issue
+  MEDIUM // Standard priority
+  HIGH // Urgent - high value or safety
+  CRITICAL // Immediate attention required
+}
+
+enum DisputeResolutionType {
+  FULL_REFUND_RENTER // Full refund to renter
+  PARTIAL_REFUND_RENTER // Partial refund to renter
+  FULL_PAYOUT_OWNER // Full payout to owner
+  PARTIAL_PAYOUT_OWNER // Partial payout to owner
+  SPLIT_DECISION // Split between parties
+  NO_ACTION // No financial action
+  BOND_CAPTURE // Bond captured for damage
+  EXTERNAL_RESOLUTION // Resolved externally (insurance, legal)
+}
+
+// Duplicate DisputeEvidence removed - using definition from earlier in schema
+
+enum EvidenceType {
+  PHOTO // Photo evidence
+  VIDEO // Video evidence
+  DOCUMENT // Document (PDF, etc.)
+  CHECKLIST // Linked checklist record
+  MESSAGE // Linked message thread
+  INVOICE // Invoice/receipt
+  REPORT // Damage/inspection report
+  STATEMENT // Written statement
+  OTHER // Other evidence
+}
+
+// Outcome/decision log for disputes
+model DisputeOutcome {
+  id String @id @default(cuid())
+
+  disputeId String      @unique @map("disputeId")
+  dispute   DisputeCase @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  // Who made the decision
+  decidedById String @map("decidedById")
+
+  // Decision details
+  outcomeType OutcomeType @map("outcomeType")
+  decision    String      @map("decision") @db.Text
+  reasoning   String?     @map("reasoning") @db.Text
+
+  // Financial impact
+  amountAwarded Decimal? @map("amountAwarded") @db.Decimal(10, 2)
+  awardedToId   String?  @map("awardedToId") // User receiving the award
+
+  // Bond allocation
+  bondAction BondAction? @map("bondAction")
+  bondAmount Decimal?    @map("bondAmount") @db.Decimal(10, 2)
+
+  // Status change
+  previousStatus DisputeStatus @map("previousStatus")
+  newStatus      DisputeStatus @map("newStatus")
+
+  // Internal notes (admin only)
+  internalNotes String? @map("internalNotes") @db.Text
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([disputeId])
+  @@index([decidedById])
+  @@map("dispute_outcomes")
+}
+
+enum OutcomeType {
+  STATUS_CHANGE // Status updated
+  DECISION // Final decision made
+  PARTIAL_DECISION // Partial decision
+  ESCALATION // Escalated to higher level
+  BOND_ACTION // Bond captured/released
+  REFUND_ISSUED // Refund processed
+  PAYOUT_ADJUSTED // Payout adjusted
+  COMMUNICATION // Communication sent
+  INTERNAL_NOTE // Internal note added
+}
+
+enum BondAction {
+  FULL_CAPTURE // Full bond captured
+  PARTIAL_CAPTURE // Partial bond captured
+  FULL_RELEASE // Full bond released
+  SPLIT // Bond split between parties
+}
+
+// Duplicate DisputeMessage removed - using definition from earlier in schema
+
+// ============================================
+// SUPPORT TICKETING SYSTEM
+// ============================================
+
+model SupportTicket {
+  id String @id @default(cuid())
+
+  // Ticket number
+  ticketNumber String @unique @map("ticketNumber") // TKT-2024-0001
+
+  // Requester
+  requesterId    String? @map("requesterId") // Null for anonymous/guest
+  requesterEmail String  @map("requesterEmail")
+  requesterName  String? @map("requesterName")
+
+  // Ticket details
+  subject     String         @map("subject")
+  description String         @map("description") @db.Text
+  category    TicketCategory @map("category")
+
+  // Status & priority
+  status   TicketStatus   @default(NEW) @map("status")
+  priority TicketPriority @default(MEDIUM) @map("priority")
+
+  // Assignment
+  assignedToId String? @map("assignedToId")
+
+  // Related entities
+  relatedBookingId String? @map("relatedBookingId")
+  relatedListingId String? @map("relatedListingId")
+  relatedDisputeId String? @map("relatedDisputeId")
+
+  // Source
+  source TicketSource @default(WEB) @map("source")
+
+  // SLA
+  firstResponseAt       DateTime? @map("firstResponseAt")
+  firstResponseDeadline DateTime? @map("firstResponseDeadline")
+  resolutionDeadline    DateTime? @map("resolutionDeadline")
+
+  // Resolution
+  resolvedAt      DateTime? @map("resolvedAt")
+  resolutionNotes String?   @map("resolutionNotes") @db.Text
+
+  // Satisfaction
+  satisfactionRating   Int?    @map("satisfactionRating") // 1-5
+  satisfactionFeedback String? @map("satisfactionFeedback") @db.Text
+
+  // Tags for filtering
+  tags String[] @map("tags")
+
+  // Relations
+  messages TicketMessage[]
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([requesterId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([ticketNumber])
+  @@map("support_tickets")
+}
+
+enum TicketCategory {
+  ACCOUNT // Account issues
+  BOOKING // Booking help
+  PAYMENT // Payment issues
+  LISTING // Listing help
+  TECHNICAL // Technical/bug
+  VERIFICATION // Verification help
+  DISPUTE // Dispute related
+  FEEDBACK // General feedback
+  PARTNERSHIP // B2B/partnership inquiry
+  OTHER // Other
+}
+
+enum TicketStatus {
+  NEW // Just created
+  OPEN // Being worked on
+  PENDING // Waiting for customer
+  ON_HOLD // On hold
+  RESOLVED // Resolved
+  CLOSED // Closed
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketSource {
+  WEB // Website form
+  EMAIL // Email
+  PHONE // Phone call
+  CHAT // Live chat
+  IN_APP // In-app
+  SOCIAL // Social media
+}
+
+// Messages/replies on a support ticket
+model TicketMessage {
+  id String @id @default(cuid())
+
+  ticketId String        @map("ticketId")
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  // Sender
+  senderId   String?           @map("senderId") // Null for system messages
+  senderType MessageSenderType @map("senderType")
+  senderName String?           @map("senderName")
+
+  // Content
+  content String @map("content") @db.Text
+
+  // Type
+  messageType TicketMessageType @default(REPLY) @map("messageType")
+
+  // Attachments
+  attachmentUrls String[] @map("attachmentUrls")
+
+  // Internal note (admin only)
+  isInternal Boolean @default(false) @map("isInternal")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@map("ticket_messages")
+}
+
+enum MessageSenderType {
+  CUSTOMER // The requester
+  AGENT // Support agent
+  SYSTEM // Automated message
+}
+
+enum TicketMessageType {
+  REPLY // Normal reply
+  NOTE // Internal note
+  STATUS_CHANGE // Status change notification
+  ASSIGNMENT // Assignment notification
+}
+
+// ============================================
+// CONTENT MODERATION & QUALITY CONTROL
+// ============================================
+
+// Content flag submitted by users
+model ContentFlag {
+  id String @id @default(cuid())
+
+  // What is being flagged
+  contentType FlaggedContentType @map("contentType")
+  contentId   String             @map("contentId") // ID of listing, review, message, or user
+
+  // Who flagged it
+  flaggedById String @map("flaggedById")
+
+  // Flag details
+  reason      FlagReason @map("reason")
+  description String?    @map("description") @db.Text
+
+  // Status
+  status FlagStatus @default(PENDING) @map("status")
+
+  // Resolution
+  reviewedById    String?         @map("reviewedById")
+  reviewedAt      DateTime?       @map("reviewedAt")
+  resolution      FlagResolution? @map("resolution")
+  resolutionNotes String?         @map("resolutionNotes") @db.Text
+
+  // Action taken
+  actionTaken ModerationActionType? @map("actionTaken")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([contentType, contentId])
+  @@index([flaggedById])
+  @@index([status])
+  @@index([reason])
+  @@map("content_flags")
+}
+
+enum FlaggedContentType {
+  LISTING // Equipment listing
+  REVIEW // User review
+  MESSAGE // Chat message
+  USER // User profile
+  PHOTO // Listing or profile photo
+}
+
+enum FlagReason {
+  INAPPROPRIATE // Offensive, vulgar, or inappropriate content
+  MISLEADING // False or misleading information
+  UNSAFE // Safety concern with equipment
+  SPAM // Spam or promotional content
+  SCAM // Suspected scam or fraud
+  DUPLICATE // Duplicate listing
+  WRONG_CATEGORY // Listed in wrong category
+  ILLEGAL // Illegal activity or content
+  COPYRIGHT // Copyright infringement
+  HARASSMENT // Harassment or threats
+  FAKE_REVIEW // Suspected fake review
+  OTHER // Other reason
+}
+
+enum FlagStatus {
+  PENDING // Awaiting review
+  UNDER_REVIEW // Being reviewed
+  RESOLVED // Reviewed and resolved
+  DISMISSED // Flag dismissed (no action)
+  ESCALATED // Escalated for further review
+}
+
+enum FlagResolution {
+  NO_VIOLATION // Content reviewed, no violation found
+  WARNING_ISSUED // Warning sent to content owner
+  CONTENT_EDITED // Content was edited
+  CONTENT_REMOVED // Content was removed/hidden
+  USER_WARNED // User received warning
+  USER_SUSPENDED // User account suspended
+  USER_BANNED // User account banned
+  ESCALATED // Escalated to legal/external
+}
+
+// Duplicate ModerationAction model removed - using enum definition from earlier in schema
+
+enum ModerationActionType {
+  // Content actions
+  APPROVE // Approve content
+  REJECT // Reject content
+  HIDE // Hide/soft-delete content
+  UNHIDE // Restore hidden content
+  EDIT // Edit content
+  DELETE // Permanently delete (rare)
+
+  // User actions
+  WARN // Issue warning
+  SUSPEND // Suspend account
+  UNSUSPEND // Restore suspended account
+  BAN // Permanent ban
+  UNBAN // Remove ban
+
+  // Review actions
+  FLAG_DISMISS // Dismiss a flag
+  FLAG_RESOLVE // Resolve a flag
+  FLAG_ESCALATE // Escalate a flag
+
+  // Other
+  NOTE // Add internal note
+  VERIFY // Verify content/user
+}
+
+// Moderation queue item (for efficient queue management)
+model ModerationQueueItem {
+  id String @id @default(cuid())
+
+  // What needs review
+  contentType FlaggedContentType @map("contentType")
+  contentId   String             @map("contentId")
+
+  // Queue details
+  queueType ModerationQueueType @map("queueType")
+  priority  Int                 @default(0) @map("priority") // Higher = more urgent
+
+  // Assignment
+  assignedToId String?   @map("assignedToId")
+  assignedAt   DateTime? @map("assignedAt")
+
+  // Status
+  status QueueItemStatus @default(PENDING) @map("status")
+
+  // Related flags
+  flagCount Int      @default(1) @map("flagCount")
+  flagIds   String[] @map("flagIds")
+
+  // Metadata
+  metadata Json? @map("metadata") // Additional context
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("createdAt")
+  updatedAt   DateTime  @updatedAt @map("updatedAt")
+  completedAt DateTime? @map("completedAt")
+
+  @@unique([contentType, contentId])
+  @@index([queueType])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@map("moderation_queue")
+}
+
+enum ModerationQueueType {
+  NEW_LISTING // New listing pending approval
+  FLAGGED_CONTENT // Content flagged by users
+  REPORTED_USER // User reported
+  AUTO_FLAGGED // Automatically flagged by system
+  APPEAL // User appealing a decision
+}
+
+enum QueueItemStatus {
+  PENDING // Awaiting review
+  IN_PROGRESS // Being reviewed
+  COMPLETED // Review completed
+  SKIPPED // Skipped (e.g., duplicate)
+}
+
+// User moderation status (for tracking warnings, suspensions)
+model UserModerationStatus {
+  id String @id @default(cuid())
+
+  userId String @unique @map("userId")
+
+  // Warning tracking
+  warningCount      Int       @default(0) @map("warningCount")
+  lastWarningAt     DateTime? @map("lastWarningAt")
+  lastWarningReason String?   @map("lastWarningReason") @db.Text
+
+  // Suspension tracking
+  isSuspended      Boolean   @default(false) @map("isSuspended")
+  suspendedAt      DateTime? @map("suspendedAt")
+  suspendedUntil   DateTime? @map("suspendedUntil")
+  suspensionReason String?   @map("suspensionReason") @db.Text
+  suspensionCount  Int       @default(0) @map("suspensionCount")
+
+  // Ban tracking
+  isBanned  Boolean   @default(false) @map("isBanned")
+  bannedAt  DateTime? @map("bannedAt")
+  banReason String?   @map("banReason") @db.Text
+
+  // Trust score (for automated moderation)
+  trustScore Int @default(100) @map("trustScore") // 0-100
+
+  // Notes
+  internalNotes String? @map("internalNotes") @db.Text
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([isSuspended])
+  @@index([isBanned])
+  @@index([trustScore])
+  @@map("user_moderation_status")
+}
+
+// ============================================
+// FLEET / ORGANISATION ACCOUNTS
+// ============================================
+
+// Organisation member role
+enum OrgMemberRole {
+  OWNER // Full control, can delete org
+  ADMIN // Can manage members and listings
+  MANAGER // Can manage listings and bookings
+  MEMBER // Can view and create bookings
+  VIEWER // Read-only access
+}
+
+// Duplicate Organisation models removed - using definitions from earlier in schema
+
+// Link listings to organisations (shared fleet)
+model OrganisationListing {
+  id String @id @default(cuid())
+
+  organisationId String       @map("organisationId")
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  listingId String @map("listingId")
+
+  // Who added this listing to the org
+  addedById String @map("addedById")
+
+  // Notes about this equipment in the fleet
+  fleetNotes String? @map("fleetNotes") @db.Text
+  internalId String? @map("internalId") // Internal fleet ID/number
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@unique([organisationId, listingId])
+  @@index([organisationId])
+  @@index([listingId])
+  @@map("organisation_listings")
+}
+
+// Organisation invitations
+model OrganisationInvitation {
+  id String @id @default(cuid())
+
+  organisationId String       @map("organisationId")
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  // Invitation details
+  email String        @map("email")
+  role  OrgMemberRole @default(MEMBER) @map("role")
+
+  // Token for accepting
+  token String @unique @map("token")
+
+  // Status
+  status InvitationStatus @default(PENDING) @map("status")
+
+  // Tracking
+  invitedById      String    @map("invitedById")
+  expiresAt        DateTime  @map("expiresAt")
+  acceptedAt       DateTime? @map("acceptedAt")
+  acceptedByUserId String?   @map("acceptedByUserId")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([organisationId])
+  @@index([email])
+  @@index([token])
+  @@index([status])
+  @@map("organisation_invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+// ============================================
+// DISPUTE MANAGEMENT
+// ============================================
+
+// Dispute category for classification
+enum DisputeCategory {
+  DAMAGE // Equipment damage during rental
+  LATE_RETURN // Equipment returned late
+  NO_SHOW // Renter didn't show up
+  EQUIPMENT_ISSUE // Equipment not as described or malfunctioning
+  PAYMENT // Payment or refund issues
+  CANCELLATION // Cancellation dispute
+  BOND // Security bond dispute
+  OTHER // Other issues
+}
+
+// Duplicate DisputeOutcome removed - using definition from earlier in schema
+
+// Dispute case linked to a booking
+model DisputeCase {
+  id String @id @default(cuid())
+
+  // Link to booking
+  bookingId String @map("bookingId")
+
+  // Parties involved
+  openedById   String @map("openedById") // User who opened dispute
+  openedByRole String @map("openedByRole") // 'OWNER' or 'RENTER'
+  ownerId      String @map("ownerId")
+  renterId     String @map("renterId")
+
+  // Dispute details
+  category    DisputeCategory @map("category")
+  title       String          @map("title")
+  description String          @map("description") @db.Text
+
+  // Status tracking
+  status   DisputeStatus @default(OPEN) @map("status")
+  priority Int           @default(2) @map("priority") // 1=High, 2=Medium, 3=Low
+
+  // Assignment
+  assignedToId String? @map("assignedToId") // Admin handling the case
+
+  // Financial claims
+  claimedAmount Decimal? @map("claimedAmount") @db.Decimal(10, 2)
+  currency      Currency @default(NZD) @map("currency")
+
+  // Resolution
+  outcome         DisputeOutcome?
+  resolutionNotes String?         @map("resolutionNotes") @db.Text
+  resolvedAt      DateTime?       @map("resolvedAt")
+  resolvedById    String?         @map("resolvedById")
+
+  // Bond decision
+  bondAction         String?  @map("bondAction") // 'RELEASE', 'PARTIAL_RELEASE', 'FORFEIT'
+  bondAmountToOwner  Decimal? @map("bondAmountToOwner") @db.Decimal(10, 2)
+  bondAmountToRenter Decimal? @map("bondAmountToRenter") @db.Decimal(10, 2)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  // Relations
+  evidence DisputeEvidence[]
+  messages DisputeMessage[]
+  timeline DisputeTimeline[]
+
+  @@index([bookingId])
+  @@index([openedById])
+  @@index([ownerId])
+  @@index([renterId])
+  @@index([status])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("dispute_cases")
+}
+
+// Evidence attached to a dispute
+model DisputeEvidence {
+  id String @id @default(cuid())
+
+  disputeId String      @map("disputeId")
+  dispute   DisputeCase @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  // Who submitted
+  submittedById   String @map("submittedById")
+  submittedByRole String @map("submittedByRole") // 'OWNER', 'RENTER', 'ADMIN'
+
+  // Evidence type
+  type String @map("type") // 'PHOTO', 'DOCUMENT', 'CHECKLIST', 'MESSAGE', 'OTHER'
+
+  // Content
+  title       String  @map("title")
+  description String? @map("description") @db.Text
+  fileUrl     String? @map("fileUrl")
+
+  // Reference to existing data
+  checklistId     String? @map("checklistId") // Reference to handover checklist
+  messageThreadId String? @map("messageThreadId") // Reference to conversation
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([disputeId])
+  @@index([submittedById])
+  @@index([type])
+  @@map("dispute_evidence")
+}
+
+// Messages/comments on a dispute
+model DisputeMessage {
+  id String @id @default(cuid())
+
+  disputeId String      @map("disputeId")
+  dispute   DisputeCase @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  // Author
+  authorId   String @map("authorId")
+  authorRole String @map("authorRole") // 'OWNER', 'RENTER', 'ADMIN', 'SYSTEM'
+
+  // Content
+  content    String  @map("content") @db.Text
+  isInternal Boolean @default(false) @map("isInternal") // Admin-only notes
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([disputeId])
+  @@index([authorId])
+  @@index([isInternal])
+  @@map("dispute_messages")
+}
+
+// Timeline/audit trail for dispute
+model DisputeTimeline {
+  id String @id @default(cuid())
+
+  disputeId String      @map("disputeId")
+  dispute   DisputeCase @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+
+  // Event details
+  action      String @map("action") // 'OPENED', 'STATUS_CHANGED', 'EVIDENCE_ADDED', etc.
+  description String @map("description")
+
+  // Who performed the action
+  actorId   String? @map("actorId")
+  actorRole String? @map("actorRole")
+
+  // Additional data
+  metadata Json? @map("metadata")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([disputeId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("dispute_timeline")
+}
+
+// ============================================
+// MODERATION & SAFETY
+// ============================================
+
+// Type of content that can be flagged
+enum FlagTargetType {
+  LISTING
+  REVIEW
+  MESSAGE
+  USER
+  BOOKING
+}
+
+// Duplicate moderation enums and models removed - using definitions from earlier in schema
+
+// Moderation action log
+model ModerationLog {
+  id String @id @default(cuid())
+
+  // Admin who took action
+  moderatorId String @map("moderatorId")
+
+  // Target of action
+  targetType    FlagTargetType @map("targetType")
+  targetId      String         @map("targetId")
+  targetOwnerId String?        @map("targetOwnerId") // User who owns the content
+
+  // Action details
+  action ModerationAction @map("action")
+  reason String           @map("reason")
+  notes  String?          @map("notes") @db.Text
+
+  // Related flag (if action was from a flag)
+  flagId String? @map("flagId")
+
+  // Snapshot of content before action (for audit)
+  contentSnapshot Json? @map("contentSnapshot")
+
+  // For suspensions/bans
+  suspensionEndsAt DateTime? @map("suspensionEndsAt")
+
+  // Was this action reversed?
+  reversedAt     DateTime? @map("reversedAt")
+  reversedById   String?   @map("reversedById")
+  reversalReason String?   @map("reversalReason")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([moderatorId])
+  @@index([targetType, targetId])
+  @@index([targetOwnerId])
+  @@index([flagId])
+  @@index([createdAt])
+  @@map("moderation_logs")
+}
+
+// User moderation status (for tracking warnings, suspensions, bans)
+model UserModerationRecord {
+  id String @id @default(cuid())
+
+  userId String @unique @map("userId")
+
+  // Current status
+  isSuspended    Boolean   @default(false) @map("isSuspended")
+  suspendedUntil DateTime? @map("suspendedUntil")
+  isBanned       Boolean   @default(false) @map("isBanned")
+  bannedAt       DateTime? @map("bannedAt")
+  banReason      String?   @map("banReason")
+
+  // Counts
+  warningCount   Int @default(0) @map("warningCount")
+  flagCount      Int @default(0) @map("flagCount") // Times flagged by others
+  validFlagCount Int @default(0) @map("validFlagCount") // Valid flags against them
+
+  // Trust score (higher = more trusted)
+  trustScore Int @default(100) @map("trustScore")
+
+  // Notes
+  moderatorNotes String? @map("moderatorNotes") @db.Text
+
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+
+  @@index([isSuspended])
+  @@index([isBanned])
+  @@index([trustScore])
+  @@map("user_moderation_records")
+}
+
+// Soft delete tracking for audit
+model SoftDeleteLog {
+  id String @id @default(cuid())
+
+  // What was deleted
+  entityType String @map("entityType") // 'Listing', 'Review', 'Message', etc.
+  entityId   String @map("entityId")
+
+  // Who deleted and why
+  deletedById   String @map("deletedById")
+  deletedByRole String @map("deletedByRole") // 'USER', 'ADMIN', 'SYSTEM'
+  reason        String @map("reason")
+
+  // Snapshot of deleted content
+  contentSnapshot Json @map("contentSnapshot")
+
+  // Can it be restored?
+  canRestore   Boolean   @default(true) @map("canRestore")
+  restoredAt   DateTime? @map("restoredAt")
+  restoredById String?   @map("restoredById")
+
+  createdAt DateTime @default(now()) @map("createdAt")
+
+  @@index([entityType, entityId])
+  @@index([deletedById])
+  @@index([createdAt])
+  @@map("soft_delete_logs")
+}
+
+// ============================================
+// SYSTEM CONFIGURATION
+// ============================================
+
+// Duplicate SystemConfig removed - using definition from earlier in schema
