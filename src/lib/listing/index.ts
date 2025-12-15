@@ -30,3 +30,26 @@ export type {
   PublishValidationResult,
   ListingRiskAssessment,
 } from './listing-service'
+
+// Listing validation exports
+export {
+  validateCreateListing,
+  validatePublishListing,
+  validateUpdateListing,
+  validatePricing,
+  validateAvailability,
+  validateOwnership,
+  validateListingComplete,
+  validateCurrencyCountryMatch,
+  checkOrphanedListing,
+  createListingSchema,
+  publishListingSchema,
+  updateListingSchema,
+} from './listing-validation'
+
+export type {
+  CreateListingInput,
+  PublishListingInput,
+  UpdateListingInput,
+  ValidationResult,
+} from './listing-validation'

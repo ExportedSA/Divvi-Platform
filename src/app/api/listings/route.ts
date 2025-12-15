@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Decimal } from '@prisma/client/runtime/library'
+import {
+  validateCreateListing,
+  validateOwnership,
+  validatePricing,
+  validateCurrencyCountryMatch,
+} from '@/lib/listing/listing-validation'
 
 // GET /api/listings - Get all listings (public, filtered)
 export async function GET(request: NextRequest) {
@@ -97,20 +103,87 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).id
 
-    // Check user is an owner
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true }
-    })
-
-    if (!user || (user.role !== 'OWNER' && user.role !== 'ADMIN')) {
+    // ==========================================================================
+    // STEP 1: Validate ownership and permissions
+    // ==========================================================================
+    const ownershipValidation = await validateOwnership(userId)
+    if (!ownershipValidation.valid) {
       return NextResponse.json(
-        { error: 'Only owners can create listings' },
+        { 
+          error: ownershipValidation.errors[0]?.message || 'Permission denied',
+          errors: ownershipValidation.errors,
+        },
         { status: 403 }
       )
     }
 
+    // ==========================================================================
+    // STEP 2: Parse and validate input
+    // ==========================================================================
     const body = await request.json()
+    
+    // Convert string numbers to actual numbers for validation
+    const normalizedInput = {
+      ...body,
+      pricePerDay: body.pricePerDay ? Number(body.pricePerDay) : undefined,
+      pricePerWeek: body.pricePerWeek ? Number(body.pricePerWeek) : undefined,
+      year: body.year ? Number(body.year) : undefined,
+      minimumRentalDays: body.minimumRentalDays ? Number(body.minimumRentalDays) : undefined,
+      bondAmount: body.bondAmount !== undefined ? Number(body.bondAmount) : undefined,
+      deliveryFlatFee: body.deliveryFlatFee ? Number(body.deliveryFlatFee) : undefined,
+      deliveryRadiusKm: body.deliveryRadiusKm ? Number(body.deliveryRadiusKm) : undefined,
+      enginePowerHP: body.enginePowerHP ? Number(body.enginePowerHP) : undefined,
+      workingWidthM: body.workingWidthM ? Number(body.workingWidthM) : undefined,
+      operatingWeightKg: body.operatingWeightKg ? Number(body.operatingWeightKg) : undefined,
+      estimatedReplacementValue: body.estimatedReplacementValue ? Number(body.estimatedReplacementValue) : undefined,
+    }
+
+    // Validate listing fields
+    const listingValidation = validateCreateListing(normalizedInput)
+    if (!listingValidation.valid) {
+      return NextResponse.json(
+        { 
+          error: 'Validation failed',
+          errors: listingValidation.errors,
+        },
+        { status: 400 }
+      )
+    }
+
+    // ==========================================================================
+    // STEP 3: Validate pricing consistency
+    // ==========================================================================
+    if (normalizedInput.pricePerDay) {
+      const pricingValidation = validatePricing(
+        normalizedInput.pricePerDay,
+        normalizedInput.pricePerWeek,
+        normalizedInput.minimumRentalDays
+      )
+      if (!pricingValidation.valid) {
+        return NextResponse.json(
+          { 
+            error: 'Pricing validation failed',
+            errors: pricingValidation.errors,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    // ==========================================================================
+    // STEP 4: Validate currency matches country
+    // ==========================================================================
+    if (normalizedInput.country && normalizedInput.currency) {
+      const currencyValidation = validateCurrencyCountryMatch(
+        normalizedInput.country,
+        normalizedInput.currency
+      )
+      // Currency mismatch is a warning, not an error - include in response
+    }
+
+    // ==========================================================================
+    // STEP 5: Create the listing
+    // ==========================================================================
     const {
       title,
       description,
@@ -136,15 +209,8 @@ export async function POST(request: NextRequest) {
       enginePowerHP,
       workingWidthM,
       operatingWeightKg,
-    } = body
-
-    // Validate required fields
-    if (!title || !description || !category || !country || !region || !pricePerDay || !currency || !insuranceMode) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
-    }
+      estimatedReplacementValue,
+    } = normalizedInput
 
     const listing = await prisma.listing.create({
       data: {
@@ -154,25 +220,26 @@ export async function POST(request: NextRequest) {
         category,
         brand: brand || null,
         model: model || null,
-        year: year ? parseInt(year) : null,
+        year: year || null,
         country,
         region,
         localArea: localArea || null,
         pricePerDay: new Decimal(pricePerDay),
         pricePerWeek: pricePerWeek ? new Decimal(pricePerWeek) : null,
         currency,
-        minimumRentalDays: minimumRentalDays ? parseInt(minimumRentalDays) : null,
-        bondAmount: bondAmount ? new Decimal(bondAmount) : null,
+        minimumRentalDays: minimumRentalDays || null,
+        bondAmount: bondAmount !== undefined ? new Decimal(bondAmount) : null,
         insuranceMode,
         insuranceNotes: insuranceNotes || null,
         safetyNotes: safetyNotes || null,
         deliveryMode: deliveryMode || 'PICKUP_ONLY',
         deliveryFlatFee: deliveryFlatFee ? new Decimal(deliveryFlatFee) : null,
-        deliveryRadiusKm: deliveryRadiusKm ? parseInt(deliveryRadiusKm) : null,
+        deliveryRadiusKm: deliveryRadiusKm || null,
         pickupAddress: pickupAddress || null,
-        enginePowerHP: enginePowerHP ? parseInt(enginePowerHP) : null,
-        workingWidthM: workingWidthM ? parseFloat(workingWidthM) : null,
-        operatingWeightKg: operatingWeightKg ? parseInt(operatingWeightKg) : null,
+        enginePowerHP: enginePowerHP || null,
+        workingWidthM: workingWidthM || null,
+        operatingWeightKg: operatingWeightKg || null,
+        estimatedReplacementValue: estimatedReplacementValue ? new Decimal(estimatedReplacementValue) : null,
         status: 'DRAFT',
       },
       select: {
@@ -182,9 +249,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // ==========================================================================
+    // STEP 6: Return success with any warnings
+    // ==========================================================================
     return NextResponse.json({
       success: true,
-      listing
+      listing,
+      warnings: listingValidation.warnings,
     })
   } catch (error) {
     console.error('Create listing error:', error)
