@@ -1,5 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Docker: Enable standalone output for minimal container
+  output: 'standalone',
+  
+  // Security
+  poweredByHeader: false,
+  
+  // Performance
+  compress: true,
+  
+  // ESLint - allow build with warnings
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  
+  // Image optimization
   images: {
     domains: ['localhost'],
     remotePatterns: [

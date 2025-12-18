@@ -16,16 +16,18 @@ ${PLATFORM_FEE_LEGAL_TEXT}
 
 2. **Payment Processing**: When a renter makes a booking:
    - The renter pays the rental subtotal plus the platform service fee
+   - Payments are processed securely via Stripe
    - The platform fee is automatically deducted
-   - The remaining amount (owner payout) is held in escrow until the rental is completed
+   - The remaining amount (owner payout) is transferred to the owner after rental completion
 
 3. **Owner Payouts**: After successful completion of a rental:
    - The owner receives the rental subtotal minus the ${PLATFORM_FEE_DISPLAY} platform fee
    - Payouts are processed according to the owner's payout schedule
 
 4. **Security Bonds**: Security bonds are separate from the platform fee:
-   - Bonds are authorised (not charged) at the time of booking
-   - Bonds are only captured if damage is reported
+   - Bonds are authorised (not charged) at the time of booking via Stripe
+   - Bond authorisations are valid for up to 7 days; longer rentals may require re-authorisation
+   - Bonds are only captured if damage is reported and agreed
    - No platform fee is applied to bond amounts
 
 ### Example Calculation

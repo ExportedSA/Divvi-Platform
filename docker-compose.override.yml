@@ -1,0 +1,19 @@
+# Development overrides - automatically merged with docker-compose.yml
+# Usage: docker-compose up (uses both files automatically)
+
+version: '3.8'
+
+services:
+  app:
+    build:
+      target: deps
+    command: npm run dev
+    volumes:
+      # Mount source code for hot reload
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NODE_ENV: development
+    ports:
+      - "${APP_PORT:-3000}:1000"

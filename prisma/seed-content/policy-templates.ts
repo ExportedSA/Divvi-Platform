@@ -58,10 +58,11 @@ export const INSURANCE_POLICY_CONTENT = `
 
 ## 2. Platform Role & Legal Position
 
-- **Lendit is a marketplace facilitator only.**
-- Lendit does not own, operate, maintain, or insure the machinery listed on the platform.
-- All rental agreements are between the Owner and the Renter, with Lendit providing the digital infrastructure that enables the transaction.
-- Lendit may assist with payment processing, bond authorisations, and dispute facilitation, but is not a party to the underlying rental contract.
+- **Divvi is a marketplace facilitator only.**
+- Divvi does not own, operate, maintain, or insure the machinery listed on the platform.
+- All rental agreements are between the Owner and the Renter, with Divvi providing the digital infrastructure that enables the transaction.
+- Divvi facilitates payment processing via Stripe, bond authorisations, and dispute facilitation, but is not a party to the underlying rental contract.
+- Divvi does not hold funds in escrow. Payments are processed directly via Stripe Connect.
 
 ---
 
@@ -109,13 +110,15 @@ Bonds function as a security deposit to cover potential damage, misuse, cleaning
 
 ### 4.3 Authorisation & Capture
 
-Lendit will:
-- Authorise the bond amount at time of booking.
-- Capture all or part of the bond only where damage or other charges apply.
+Divvi will:
+- Authorise the bond amount at time of booking via Stripe.
+- Bond authorisations are valid for up to 7 days. For longer rentals, re-authorisation may be required.
+- Capture all or part of the bond only where damage or other charges apply and are agreed.
 
-### 4.4 Refunds
+### 4.4 Release & Refunds
 
-Where no charge applies, the bond is fully released after the Owner confirms satisfactory return.
+Where no charge applies, the bond authorisation is released after the Owner confirms satisfactory return. 
+Refunds (where applicable) are processed back to the original payment method and may take 5-10 business days to appear.
 
 ---
 

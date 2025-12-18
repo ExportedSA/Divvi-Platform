@@ -1,0 +1,49 @@
+# =============================================================================
+# Terraform Variables - Copy to terraform.tfvars and fill in values
+# =============================================================================
+
+# AWS Configuration
+aws_region  = "ap-southeast-2"
+environment = "production"
+
+# Networking
+vpc_cidr           = "10.0.0.0/16"
+enable_nat_gateway = true
+single_nat_gateway = false  # Set to true for cost savings in non-prod
+
+# Database
+db_instance_class          = "db.t3.medium"  # Upgrade for production: db.r6g.large
+db_allocated_storage       = 50
+db_max_allocated_storage   = 200
+db_name                    = "machinery_rentals"
+db_username                = "divvi_admin"
+db_backup_retention_period = 7
+db_multi_az                = true
+
+# Application
+app_port          = 3000
+app_cpu           = 512    # 0.5 vCPU
+app_memory        = 1024   # 1 GB
+app_desired_count = 2
+app_min_count     = 2
+app_max_count     = 10
+app_image_tag     = "latest"
+
+# Domain & SSL (optional - leave empty for ALB DNS)
+domain_name     = ""  # e.g., "divvi.co.nz"
+certificate_arn = ""  # ACM certificate ARN
+
+# Secrets (required)
+nextauth_secret = "generate-with-openssl-rand-base64-32"
+
+# Stripe (optional)
+stripe_secret_key     = ""
+stripe_webhook_secret = ""
+
+# Cloudinary (optional)
+cloudinary_cloud_name = ""
+cloudinary_api_key    = ""
+cloudinary_api_secret = ""
+
+# Sentry (optional)
+sentry_dsn = ""
