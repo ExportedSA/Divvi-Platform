@@ -13,19 +13,32 @@ import { Decimal } from '@prisma/client/runtime/library'
 // STRIPE CLIENT INITIALIZATION
 // =============================================================================
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY
- const stripeApiVersion = (process.env.STRIPE_API_VERSION || '2025-11-17') as any
+// Lazy initialization - only create Stripe client when actually needed at runtime
+let stripeInstance: Stripe | null = null
 
-if (!stripeSecretKey && process.env.NODE_ENV === 'production') {
-  throw new Error('STRIPE_SECRET_KEY is required in production')
+export function getStripe(): Stripe | null {
+  // During build time, return null to avoid requiring env vars
+  if (typeof window !== 'undefined' || !process.env.STRIPE_SECRET_KEY) {
+    return stripeInstance
+  }
+
+  if (stripeInstance) {
+    return stripeInstance
+  }
+
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  const stripeApiVersion = (process.env.STRIPE_API_VERSION || '2025-11-17') as any
+
+  stripeInstance = new Stripe(stripeSecretKey, {
+    apiVersion: stripeApiVersion,
+    typescript: true,
+  })
+
+  return stripeInstance
 }
 
-export const stripe = stripeSecretKey 
-  ? new Stripe(stripeSecretKey, {
-      apiVersion: stripeApiVersion,
-      typescript: true,
-    })
-  : null
+// Export stripe - lazily initialized, safe for build time
+export const stripe = getStripe()
 
 // =============================================================================
 // TYPES
