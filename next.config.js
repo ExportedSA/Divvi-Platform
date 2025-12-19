@@ -8,12 +8,7 @@ const nextConfig = {
   
   // Performance
   compress: true,
-  
-  // ESLint - allow build with warnings
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  
+
   // Image optimization
   images: {
     domains: ['localhost'],
