@@ -117,7 +117,8 @@ export async function getEligibleBookingsForPayout(
     },
     select: {
       id: true,
-      completedAt: true,
+      actualReturnTime: true,
+      updatedAt: true,
       listing: {
         select: { title: true },
       },
@@ -131,7 +132,7 @@ export async function getEligibleBookingsForPayout(
         },
       },
     },
-    orderBy: { completedAt: 'asc' },
+    orderBy: { updatedAt: 'asc' },
   })
 
   return bookings
@@ -152,7 +153,7 @@ export async function getEligibleBookingsForPayout(
       return {
         bookingId: booking.id,
         listingTitle: booking.listing.title,
-        completedAt: booking.completedAt || new Date(),
+        completedAt: booking.actualReturnTime || booking.updatedAt,
         rentalAmount,
         platformFee,
         ownerAmount,
@@ -176,7 +177,7 @@ export async function getOwnerPayoutSummary(
       id: true,
       firstName: true,
       lastName: true,
-      ownerPayoutAccount: {
+      payoutAccount: {
         select: {
           id: true,
           stripeAccountId: true,
@@ -205,7 +206,7 @@ export async function getOwnerPayoutSummary(
     { grossAmount: 0, platformFees: 0, refunds: 0, netAmount: 0 }
   )
 
-  const payoutAccount = owner.ownerPayoutAccount
+  const payoutAccount = owner.payoutAccount
   const minimumPayoutAmount = payoutAccount 
     ? Number(payoutAccount.minimumPayoutAmount) 
     : 50
@@ -290,7 +291,7 @@ export async function holdPayoutForDispute(
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        action: 'PAYOUT_HELD',
+        action: 'BOOKING_STATUS_CHANGED',
         description: 'Payout held due to dispute',
         targetType: 'Booking',
         targetId: bookingId,
@@ -359,7 +360,7 @@ export async function releaseDisputeHold(
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        action: 'DISPUTE_RESOLVED',
+        action: 'ADMIN_DISPUTE_RESOLVED',
         description: `Dispute resolved: ${resolution}`,
         targetType: 'Booking',
         targetId: bookingId,

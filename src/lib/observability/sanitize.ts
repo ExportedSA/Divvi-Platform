@@ -165,7 +165,7 @@ export function sanitizeObject<T extends Record<string, unknown>>(
   maxDepth: number = 10
 ): T {
   if (maxDepth <= 0) {
-    return { '[MAX_DEPTH_EXCEEDED]': true } as T
+    return { '[MAX_DEPTH_EXCEEDED]': true } as unknown as T
   }
   
   if (obj === null || obj === undefined) {

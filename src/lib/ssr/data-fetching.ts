@@ -7,6 +7,7 @@
 
 import { cache } from 'react'
 import { prisma } from '@/lib/prisma'
+import { ListingCategory } from '@prisma/client'
 import { 
   listingListSelect, 
   bookingListSelect,
@@ -30,20 +31,20 @@ export const getListingById = cache(async (id: string) => {
     where: { id },
     include: {
       owner: { select: userPublicSelect },
-      images: { orderBy: { position: 'asc' } },
+      photos: { orderBy: { position: 'asc' } },
     },
   })
 })
 
 /**
- * Get listing by slug - deduplicated per request
+ * Get listing by ID with full details - deduplicated per request
  */
-export const getListingBySlug = cache(async (slug: string) => {
+export const getListingWithDetails = cache(async (id: string) => {
   return prisma.listing.findUnique({
-    where: { slug },
+    where: { id },
     include: {
       owner: { select: userPublicSelect },
-      images: { orderBy: { position: 'asc' } },
+      photos: { orderBy: { position: 'asc' } },
     },
   })
 })
@@ -96,7 +97,7 @@ export async function getFeaturedListings(limit: number = 8) {
  * Get listings by category (cached)
  */
 export async function getListingsByCategory(
-  category: string,
+  category: ListingCategory,
   page: number = 1,
   limit: number = 20
 ) {
@@ -173,7 +174,7 @@ export async function getOwnerProfile(ownerId: string) {
           select: userPublicSelect,
         }),
         prisma.listing.findMany({
-          where: { ownerId, status: 'ACTIVE' },
+          where: { ownerId, status: 'LIVE' },
           select: listingListSelect,
           take: 10,
         }),
@@ -218,8 +219,8 @@ export async function getHomepageData() {
 /**
  * Fetch listing page data in parallel
  */
-export async function getListingPageData(slug: string) {
-  const listing = await getListingBySlug(slug)
+export async function getListingPageData(id: string) {
+  const listing = await getListingWithDetails(id)
   
   if (!listing) {
     return null
@@ -242,7 +243,7 @@ export async function getListingPageData(slug: string) {
  */
 async function getSimilarListings(
   excludeId: string,
-  category: string,
+  category: ListingCategory,
   limit: number
 ) {
   return prisma.listing.findMany({

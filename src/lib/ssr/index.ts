@@ -7,7 +7,7 @@
 export {
   // React cache wrappers (request deduplication)
   getListingById,
-  getListingBySlug,
+  getListingWithDetails,
   getUserById,
   getBookingById,
   

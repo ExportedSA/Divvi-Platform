@@ -10,7 +10,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, ListingCategory } from '@prisma/client'
 import { 
   listingListSelect, 
   getOffsetPagination, 
@@ -76,7 +76,6 @@ export interface SearchParams {
 export interface SearchResult {
   id: string
   title: string
-  slug: string
   category: string
   pricePerDay: number
   pricePerWeek: number | null
@@ -172,7 +171,6 @@ export async function searchListings(
   const results: SearchResult[] = listings.map(listing => ({
     id: listing.id,
     title: listing.title,
-    slug: listing.slug,
     category: listing.category,
     pricePerDay: Number(listing.pricePerDay),
     pricePerWeek: listing.pricePerWeek ? Number(listing.pricePerWeek) : null,
@@ -180,7 +178,7 @@ export async function searchListings(
     country: listing.country,
     region: listing.region,
     localArea: listing.localArea,
-    primaryImageUrl: listing.primaryImageUrl,
+    primaryImageUrl: listing.photos?.[0]?.url || null,
     status: listing.status,
     brand: listing.brand,
     model: listing.model,
@@ -229,7 +227,7 @@ export async function searchAvailableListings(
         },
       },
       // Exclude listings with availability blocks
-      availabilityBlocks: {
+      availability: {
         none: {
           AND: [
             { startDate: { lte: filters.availableTo } },
@@ -272,7 +270,6 @@ export async function searchAvailableListings(
   const results: SearchResult[] = listings.map(listing => ({
     id: listing.id,
     title: listing.title,
-    slug: listing.slug,
     category: listing.category,
     pricePerDay: Number(listing.pricePerDay),
     pricePerWeek: listing.pricePerWeek ? Number(listing.pricePerWeek) : null,
@@ -280,7 +277,7 @@ export async function searchAvailableListings(
     country: listing.country,
     region: listing.region,
     localArea: listing.localArea,
-    primaryImageUrl: listing.primaryImageUrl,
+    primaryImageUrl: listing.photos?.[0]?.url || null,
     status: listing.status,
     brand: listing.brand,
     model: listing.model,
@@ -388,16 +385,16 @@ function buildWhereClause(filters: SearchFilters): Prisma.ListingWhereInput {
         { description: { contains: searchTerms, mode: 'insensitive' } },
         { brand: { contains: searchTerms, mode: 'insensitive' } },
         { model: { contains: searchTerms, mode: 'insensitive' } },
-        { category: { contains: searchTerms, mode: 'insensitive' } },
+        // Note: category is an enum, can't use contains - search in other text fields only
       ],
     })
   }
 
   // Category filter
   if (filters.category) {
-    conditions.push({ category: filters.category })
+    conditions.push({ category: filters.category as ListingCategory })
   } else if (filters.categories && filters.categories.length > 0) {
-    conditions.push({ category: { in: filters.categories } })
+    conditions.push({ category: { in: filters.categories as ListingCategory[] } })
   }
 
   // Country filter
@@ -455,10 +452,10 @@ function buildWhereClause(filters: SearchFilters): Prisma.ListingWhereInput {
     })
   }
 
-  // Insurance included filter
+  // Insurance included filter (owner provides insurance)
   if (filters.insuranceIncluded) {
     conditions.push({
-      insuranceMode: 'INCLUDED',
+      insuranceMode: 'OWNER_PROVIDED',
     })
   }
 
@@ -549,7 +546,7 @@ export async function checkListingAvailability(
   }
 
   // Check for availability blocks
-  const availabilityBlocks = await prisma.availabilityBlock.findMany({
+  const availabilityBlocks = await prisma.listingAvailability.findMany({
     where: {
       listingId,
       AND: [
@@ -561,14 +558,14 @@ export async function checkListingAvailability(
       id: true,
       startDate: true,
       endDate: true,
-      reason: true,
+      type: true,
     },
   })
 
   if (availabilityBlocks.length > 0) {
     conflicts.push(
       ...availabilityBlocks.map(
-        b => `Blocked: ${b.startDate.toLocaleDateString()} - ${b.endDate.toLocaleDateString()}${b.reason ? ` (${b.reason})` : ''}`
+        (b: { id: string; startDate: Date; endDate: Date; type: string }) => `Blocked: ${b.startDate.toLocaleDateString()} - ${b.endDate.toLocaleDateString()} (${b.type})`
       )
     )
   }
@@ -603,7 +600,7 @@ export async function getListingAvailability(
       },
       select: { startDate: true, endDate: true },
     }),
-    prisma.availabilityBlock.findMany({
+    prisma.listingAvailability.findMany({
       where: {
         listingId,
         AND: [
@@ -628,8 +625,8 @@ export async function getListingAvailability(
     }
   }
 
-  bookings.forEach(b => addDateRange(b.startDate, b.endDate))
-  blocks.forEach(b => addDateRange(b.startDate, b.endDate))
+  bookings.forEach((b: { startDate: Date; endDate: Date }) => addDateRange(b.startDate, b.endDate))
+  blocks.forEach((b: { startDate: Date; endDate: Date }) => addDateRange(b.startDate, b.endDate))
 
   // Generate all dates in month with availability
   const result: { date: string; available: boolean }[] = []
@@ -684,11 +681,9 @@ export async function getSearchSuggestions(
       distinct: ['brand'],
       take: limit,
     }),
+    // Category is an enum - get distinct categories from active listings instead
     prisma.listing.findMany({
-      where: {
-        ...activeListingWhere,
-        category: { contains: searchTerm, mode: 'insensitive' },
-      },
+      where: activeListingWhere,
       select: { category: true },
       distinct: ['category'],
       take: limit,
@@ -700,7 +695,10 @@ export async function getSearchSuggestions(
   
   titleMatches.forEach(m => suggestions.add(m.title))
   brandMatches.forEach(m => m.brand && suggestions.add(m.brand))
-  categoryMatches.forEach(m => suggestions.add(m.category))
+  // Filter categories that match the search term
+  categoryMatches
+    .filter(m => m.category.toLowerCase().includes(searchTerm.toLowerCase()))
+    .forEach(m => suggestions.add(m.category))
 
   return Array.from(suggestions).slice(0, limit)
 }

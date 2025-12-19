@@ -445,7 +445,7 @@ async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        action: 'DISPUTE_CREATED',
+        action: 'BOOKING_STATUS_CHANGED',
         description: `Payment dispute created: ${dispute.reason}`,
         targetType: 'Booking',
         targetId: dbPaymentIntent.bookingId,
@@ -460,6 +460,101 @@ async function handleDisputeCreated(dispute: Stripe.Dispute): Promise<void> {
   }
 
   console.log(`[Webhook] Processed charge.dispute.created: ${dispute.id}`)
+}
+
+/**
+ * Handle Stripe Connect account updates
+ * Updates owner payout account status when Stripe account status changes
+ */
+async function handleAccountUpdated(account: Stripe.Account): Promise<void> {
+  console.log(`[Webhook] Processing account.updated: ${account.id}`)
+
+  // Find the owner payout account by Stripe account ID
+  const payoutAccount = await prisma.ownerPayoutAccount.findUnique({
+    where: { stripeAccountId: account.id },
+    select: {
+      id: true,
+      userId: true,
+      stripeAccountStatus: true,
+      stripeOnboardingComplete: true,
+      isVerified: true,
+    },
+  })
+
+  if (!payoutAccount) {
+    console.log(`[Webhook] Account ${account.id} not found in database (may be external)`)
+    return
+  }
+
+  const chargesEnabled = account.charges_enabled ?? false
+  const payoutsEnabled = account.payouts_enabled ?? false
+  const detailsSubmitted = account.details_submitted ?? false
+  const disabledReason = account.requirements?.disabled_reason ?? null
+  const isRestricted = !!disabledReason
+
+  const onboardingComplete = !!(
+    chargesEnabled &&
+    payoutsEnabled &&
+    detailsSubmitted &&
+    !isRestricted
+  )
+
+  const accountStatus = isRestricted
+    ? 'restricted'
+    : onboardingComplete
+      ? 'active'
+      : detailsSubmitted
+        ? 'pending'
+        : 'incomplete'
+
+  const was = {
+    stripeAccountStatus: payoutAccount.stripeAccountStatus,
+    stripeOnboardingComplete: payoutAccount.stripeOnboardingComplete,
+    isVerified: payoutAccount.isVerified,
+  }
+
+  const now = {
+    stripeAccountStatus: accountStatus,
+    stripeOnboardingComplete: onboardingComplete,
+    isVerified: onboardingComplete,
+  }
+
+  await prisma.ownerPayoutAccount.update({
+    where: { id: payoutAccount.id },
+    data: {
+      stripeAccountStatus: accountStatus,
+      stripeOnboardingComplete: onboardingComplete,
+      isVerified: onboardingComplete,
+      verifiedAt: onboardingComplete ? new Date() : undefined,
+    },
+  })
+
+  if (
+    was.stripeAccountStatus !== now.stripeAccountStatus ||
+    was.stripeOnboardingComplete !== now.stripeOnboardingComplete ||
+    was.isVerified !== now.isVerified
+  ) {
+    await prisma.auditLog.create({
+      data: {
+        action: 'USER_UPDATED',
+        description: `Stripe Connect account status changed: ${was.stripeAccountStatus ?? 'unknown'} -> ${now.stripeAccountStatus}`,
+        targetType: 'User',
+        targetId: payoutAccount.userId,
+        targetUserId: payoutAccount.userId,
+        previousValue: was as any,
+        newValue: now as any,
+        metadata: {
+          stripeAccountId: account.id,
+          chargesEnabled,
+          payoutsEnabled,
+          detailsSubmitted,
+          disabledReason,
+        } as any,
+      },
+    })
+  }
+
+  console.log(`[Webhook] Updated account ${account.id}: status=${accountStatus}, onboardingComplete=${onboardingComplete}`)
 }
 
 /**
@@ -571,6 +666,10 @@ export async function processWebhookEvent(
       case 'payout.failed':
       case 'payout.canceled':
         await handlePayoutEvent(event.data.object as Stripe.Payout, event.type)
+        break
+
+      case 'account.updated':
+        await handleAccountUpdated(event.data.object as Stripe.Account)
         break
 
       default:

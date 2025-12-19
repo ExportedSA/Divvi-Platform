@@ -75,14 +75,17 @@ export function buildPaginatedResponse<T>(
 export const listingListSelect = {
   id: true,
   title: true,
-  slug: true,
   category: true,
   pricePerDay: true,
   currency: true,
   country: true,
   region: true,
   status: true,
-  primaryImageUrl: true,
+  photos: {
+    where: { isPrimary: true },
+    take: 1,
+    select: { url: true },
+  },
   owner: {
     select: {
       id: true,
@@ -100,14 +103,18 @@ export const bookingListSelect = {
   bookingStatus: true,
   startDate: true,
   endDate: true,
-  totalPrice: true,
+  rentalTotal: true,
   currency: true,
   createdAt: true,
   listing: {
     select: {
       id: true,
       title: true,
-      primaryImageUrl: true,
+      photos: {
+        where: { isPrimary: true },
+        take: 1,
+        select: { url: true },
+      },
     },
   },
   renter: {
@@ -146,13 +153,13 @@ export const userPublicSelect = {
 export const ownerProfileSelect = {
   ...userPublicSelect,
   listings: {
-    where: { status: 'ACTIVE' },
+    where: { status: 'LIVE' },
     select: listingListSelect,
     take: 10,
   },
   _count: {
     select: {
-      listings: { where: { status: 'ACTIVE' } },
+      listings: { where: { status: 'LIVE' } },
       bookingsAsOwner: { where: { bookingStatus: 'COMPLETED' } },
     },
   },
@@ -167,7 +174,7 @@ export const ownerProfileSelect = {
  * Use instead of multiple findUnique calls
  */
 export function batchIds<T extends string>(ids: T[]): T[] {
-  return [...new Set(ids)]
+  return Array.from(new Set(ids))
 }
 
 /**
@@ -185,7 +192,7 @@ export function inClause<T>(field: string, values: T[]) {
  * Active listings filter
  */
 export const activeListingWhere = {
-  status: 'ACTIVE',
+  status: 'LIVE',
   owner: {
     isSuspended: false,
   },

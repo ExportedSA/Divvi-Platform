@@ -130,7 +130,7 @@ class MemoryCache {
     }
 
     let count = 0
-    for (const key of keys) {
+    for (const key of Array.from(keys)) {
       if (this.delete(key)) {
         count++
       }

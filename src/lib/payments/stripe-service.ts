@@ -14,6 +14,7 @@ import { Decimal } from '@prisma/client/runtime/library'
 // =============================================================================
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+ const stripeApiVersion = (process.env.STRIPE_API_VERSION || '2025-11-17') as any
 
 if (!stripeSecretKey && process.env.NODE_ENV === 'production') {
   throw new Error('STRIPE_SECRET_KEY is required in production')
@@ -21,7 +22,7 @@ if (!stripeSecretKey && process.env.NODE_ENV === 'production') {
 
 export const stripe = stripeSecretKey 
   ? new Stripe(stripeSecretKey, {
-      apiVersion: '2024-11-20.acacia',
+      apiVersion: stripeApiVersion,
       typescript: true,
     })
   : null
@@ -139,6 +140,16 @@ export async function createPaymentIntent(
           },
         },
         paymentIntent: true,
+        owner: {
+          select: {
+            payoutAccount: {
+              select: {
+                stripeAccountId: true,
+                stripeOnboardingComplete: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -148,6 +159,16 @@ export async function createPaymentIntent(
 
     if (booking.bookingStatus !== 'ACCEPTED') {
       return { success: false, error: 'Booking must be accepted before payment' }
+    }
+
+    // Verify owner has completed Stripe Connect onboarding
+    const ownerStripeAccountId = booking.owner.payoutAccount?.stripeAccountId
+    if (!ownerStripeAccountId) {
+      return { success: false, error: 'Owner has not completed payment setup' }
+    }
+
+    if (!booking.owner.payoutAccount?.stripeOnboardingComplete) {
+      return { success: false, error: 'Owner payment account is not fully verified' }
     }
 
     if (booking.paymentIntent) {
@@ -168,12 +189,22 @@ export async function createPaymentIntent(
 
     // Convert to cents for Stripe
     const amountInCents = Math.round(serverCalculatedAmounts.totalAmount * 100)
+    const platformFeeInCents = Math.round(serverCalculatedAmounts.platformFeeAmount * 100)
 
-    // Create Stripe payment intent
+    // Create Stripe payment intent with Connect routing
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: serverCalculatedAmounts.currency.toLowerCase(),
       customer: customerId,
+      
+      // CRITICAL: Platform fee - collected by Divvi
+      application_fee_amount: platformFeeInCents,
+      
+      // CRITICAL: Route funds to owner's Connect account
+      transfer_data: {
+        destination: ownerStripeAccountId,
+      },
+      
       metadata: {
         bookingId,
         renterId: booking.renterId,
@@ -244,6 +275,16 @@ export async function createDepositPaymentIntent(
         listing: {
           select: { title: true },
         },
+        owner: {
+          select: {
+            payoutAccount: {
+              select: {
+                stripeAccountId: true,
+                stripeOnboardingComplete: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -255,13 +296,34 @@ export async function createDepositPaymentIntent(
       return { success: false, error: 'Booking must be accepted before payment' }
     }
 
+    // Verify owner has completed Stripe Connect onboarding
+    const ownerStripeAccountId = booking.owner.payoutAccount?.stripeAccountId
+    if (!ownerStripeAccountId) {
+      return { success: false, error: 'Owner has not completed payment setup' }
+    }
+
+    if (!booking.owner.payoutAccount?.stripeOnboardingComplete) {
+      return { success: false, error: 'Owner payment account is not fully verified' }
+    }
+
     const totalAmount = Number(booking.rentalTotal)
     const { depositAmount } = calculateDepositAmount(totalAmount, depositPercent)
+    const amounts = calculatePaymentAmounts(depositAmount, 0, booking.currency)
     const amountInCents = Math.round(depositAmount * 100)
+    const platformFeeInCents = Math.round(amounts.platformFeeAmount * 100)
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: booking.currency.toLowerCase(),
+      
+      // CRITICAL: Platform fee - collected by Divvi
+      application_fee_amount: platformFeeInCents,
+      
+      // CRITICAL: Route funds to owner's Connect account
+      transfer_data: {
+        destination: ownerStripeAccountId,
+      },
+      
       metadata: {
         bookingId,
         renterId: booking.renterId,
@@ -275,9 +337,7 @@ export async function createDepositPaymentIntent(
       },
     })
 
-    // Store as pending deposit payment
-    const amounts = calculatePaymentAmounts(depositAmount, 0, booking.currency)
-    
+    // Store as pending deposit payment (reuse amounts calculated above)
     await prisma.paymentIntent.create({
       data: {
         bookingId,

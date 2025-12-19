@@ -68,7 +68,7 @@ export async function transitionBookingStatus(
         select: { status: true },
       },
       handoverChecklists: {
-        where: { type: 'RETURN' },
+        where: { handoverType: 'RETURN' },
         select: { completedAt: true },
       },
     },
@@ -101,7 +101,7 @@ export async function transitionBookingStatus(
     newStatus,
     actorRole,
     {
-      isPaymentComplete: booking.paymentIntent?.status === 'succeeded',
+      isPaymentComplete: booking.paymentIntent?.status === 'SUCCEEDED',
       isInspectionComplete: booking.handoverChecklists.some(c => c.completedAt !== null),
       isOwner,
       isRenter,
