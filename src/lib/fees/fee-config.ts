@@ -13,7 +13,7 @@ export const PLATFORM_FEE_DISPLAY = '1.5%'
 export const PLATFORM_FEE_DESCRIPTION = 'Platform service fee'
 
 // Legal text for terms
-export const PLATFORM_FEE_LEGAL_TEXT = `Lendit applies a ${PLATFORM_FEE_DISPLAY} service fee to all rentals, deducted from owner payouts.`
+export const PLATFORM_FEE_LEGAL_TEXT = `Divvi applies a ${PLATFORM_FEE_DISPLAY} service fee to all rentals, deducted from owner payouts.`
 
 /**
  * Booking fee calculation result

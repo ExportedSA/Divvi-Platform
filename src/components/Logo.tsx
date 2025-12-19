@@ -30,7 +30,7 @@ export function Logo({
   const logoContent = (
     <div className={`flex flex-col ${className}`}>
       <span className={`font-bold tracking-tight ${sizeClasses[size]}`}>
-        <span className="text-lendit-green">Lendit</span>
+        <span className="text-lendit-green">Divvi</span>
       </span>
       {showTagline && (
         <span className={`text-lendit-brown font-medium ${taglineSizes[size]}`}>
@@ -68,10 +68,10 @@ export function LogoFull({ className = '' }: { className?: string }) {
   return (
     <Link href="/" className={`inline-flex items-center space-x-2 ${className}`}>
       <div className="w-10 h-10 bg-lendit-green rounded-lg flex items-center justify-center">
-        <span className="text-white font-bold text-xl">L</span>
+        <span className="text-white font-bold text-xl">D</span>
       </div>
       <div className="flex flex-col">
-        <span className="font-bold text-xl text-lendit-green leading-tight">Lendit</span>
+        <span className="font-bold text-xl text-lendit-green leading-tight">Divvi</span>
         <span className="text-xs text-lendit-brown leading-tight">Rent with confidence</span>
       </div>
     </Link>

@@ -22,13 +22,13 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
-            {/* Lendit Logo */}
+            {/* Divvi Logo */}
             <Link href="/" className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-lendit-green rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">L</span>
+                <span className="text-white font-bold text-lg">D</span>
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-xl text-lendit-green leading-tight">Lendit</span>
+                <span className="font-bold text-xl text-lendit-green leading-tight">Divvi</span>
               </div>
             </Link>
             

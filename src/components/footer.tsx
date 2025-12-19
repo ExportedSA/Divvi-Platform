@@ -12,10 +12,10 @@ export function Footer() {
           <div className="space-y-4">
             <div className="flex items-center space-x-2">
               <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-lendit-green font-bold text-xl">L</span>
+                <span className="text-lendit-green font-bold text-xl">D</span>
               </div>
               <div>
-                <span className="font-bold text-2xl">Lendit</span>
+                <span className="font-bold text-2xl">Divvi</span>
                 <p className="text-lendit-green-200 text-xs">Rent with confidence</p>
               </div>
             </div>
@@ -79,7 +79,7 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-2 text-lendit-green-200 text-sm">
                 <Mail className="h-4 w-4" />
-                <span>support@lendit.co.nz</span>
+                <span>support@divvi.co.nz</span>
               </li>
               <li className="flex items-start gap-2 text-lendit-green-200 text-sm">
                 <MapPin className="h-4 w-4 mt-0.5" />
@@ -93,7 +93,7 @@ export function Footer() {
         <div className="border-t border-lendit-green-600 mt-10 pt-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-lendit-green-200 text-sm">
-              © {currentYear} Lendit. All rights reserved.
+              © {currentYear} Divvi. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               <span className="text-lendit-green-200 text-xs">

@@ -45,17 +45,17 @@ The breakdown would be:
 
 ### Fee Changes
 
-Lendit reserves the right to modify the platform service fee with reasonable notice to users. Any changes will be communicated via email and updated in these terms.
+Divvi reserves the right to modify the platform service fee with reasonable notice to users. Any changes will be communicated via email and updated in these terms.
 `
 
 export const FULL_TERMS_TEMPLATE = `
-# Lendit Terms of Use
+# Divvi Terms of Use
 
 Last updated: ${new Date().toLocaleDateString('en-NZ', { year: 'numeric', month: 'long', day: 'numeric' })}
 
 ## 1. Introduction
 
-Welcome to Lendit, a peer-to-peer machinery rental platform connecting equipment owners with renters across New Zealand and Australia.
+Welcome to Divvi, a peer-to-peer machinery rental platform connecting equipment owners with renters across New Zealand and Australia.
 
 By using our platform, you agree to these Terms of Use. Please read them carefully.
 
@@ -102,7 +102,7 @@ ${PLATFORM_FEE_TERMS_SECTION}
 
 ### 6.1 Dispute Resolution
 - Users should first attempt to resolve disputes directly
-- Lendit provides a dispute resolution process for unresolved issues
+- Divvi provides a dispute resolution process for unresolved issues
 
 ## 7. Privacy
 
@@ -110,5 +110,5 @@ Your privacy is important to us. Please review our Privacy Policy for informatio
 
 ## 8. Contact
 
-For questions about these terms, please contact us at support@lendit.co.nz
+For questions about these terms, please contact us at support@divvi.co.nz
 `
