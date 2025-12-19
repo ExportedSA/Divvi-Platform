@@ -3,43 +3,26 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Search, MapPin, Star, DollarSign } from 'lucide-react'
-import { MACHINERY_CATEGORIES, NZ_REGIONS, AU_STATES } from '@/lib/constants'
-import { formatCurrency } from '@/lib/utils'
+import { Search, MapPin, SlidersHorizontal } from 'lucide-react'
 
 interface Listing {
   id: string
   title: string
   description: string
   category: string
-  brand?: string
-  model?: string
-  year?: number
   country: 'NZ' | 'AU'
   region: string
-  localArea?: string
   pricePerDay: number
-  pricePerWeek?: number
   currency: string
-  owner: {
-    name: string
-    farmName?: string
-    region: string
-    country: string
-  }
   photos: Array<{
     id: string
     url: string
     isPrimary: boolean
   }>
-  _count: {
-    reviews: number
-  }
 }
 
 export default function BrowseClientPage() {
@@ -49,6 +32,7 @@ export default function BrowseClientPage() {
   const [filters, setFilters] = useState({
     search: searchParams.get('search') || '',
     category: searchParams.get('category') || '',
+    subcategory: searchParams.get('subcategory') || '',
     country: searchParams.get('country') || '',
     region: searchParams.get('region') || '',
     minPrice: searchParams.get('minPrice') || '',
@@ -82,231 +66,221 @@ export default function BrowseClientPage() {
     setFilters(prev => ({ ...prev, [key]: value }))
   }
 
-  const regions = filters.country === 'AU' ? AU_STATES : NZ_REGIONS
+  const clearFilters = () => {
+    setFilters({
+      search: '',
+      category: '',
+      subcategory: '',
+      country: '',
+      region: '',
+      minPrice: '',
+      maxPrice: '',
+      sort: 'newest'
+    })
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Filters Sidebar */}
-        <div className="lg:w-1/4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Filters
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Search</label>
-                <Input
-                  placeholder="Search machinery..."
-                  value={filters.search}
-                  onChange={(e) => updateFilter('search', e.target.value)}
-                />
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar Filters */}
+          <aside className="lg:w-80 flex-shrink-0">
+            <div className="bg-white rounded-lg shadow-sm border p-6 sticky top-4">
+              <div className="flex items-center gap-2 mb-6">
+                <SlidersHorizontal className="h-5 w-5" />
+                <h2 className="text-lg font-semibold">Filters</h2>
               </div>
 
-              <div>
-                <label className="text-sm font-medium mb-2 block">Category</label>
-                <Select value={filters.category || 'all'} onValueChange={(value) => updateFilter('category', value === 'all' ? '' : value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All categories</SelectItem>
-                    {MACHINERY_CATEGORIES.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Country</label>
-                <Select value={filters.country || 'all'} onValueChange={(value) => {
-                  updateFilter('country', value === 'all' ? '' : value)
-                  updateFilter('region', '') // Reset region when country changes
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All countries" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All countries</SelectItem>
-                    <SelectItem value="NZ">New Zealand</SelectItem>
-                    <SelectItem value="AU">Australia</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Region</label>
-                <Select value={filters.region || 'all'} onValueChange={(value) => updateFilter('region', value === 'all' ? '' : value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All regions" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All regions</SelectItem>
-                    {regions.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-6">
+                {/* Search */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Min Price</label>
+                  <label className="text-sm font-medium mb-2 block">Search</label>
                   <Input
-                    type="number"
-                    placeholder="0"
-                    value={filters.minPrice}
-                    onChange={(e) => updateFilter('minPrice', e.target.value)}
+                    placeholder="Search machinery..."
+                    value={filters.search}
+                    onChange={(e) => updateFilter('search', e.target.value)}
                   />
                 </div>
+
+                {/* Main Category */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Max Price</label>
-                  <Input
-                    type="number"
-                    placeholder="1000"
-                    value={filters.maxPrice}
-                    onChange={(e) => updateFilter('maxPrice', e.target.value)}
-                  />
+                  <label className="text-sm font-medium mb-2 block">Main Category</label>
+                  <Select value={filters.category} onValueChange={(v) => updateFilter('category', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All categories</SelectItem>
+                      <SelectItem value="TRACTOR">Tractors</SelectItem>
+                      <SelectItem value="HARVESTER">Harvesters</SelectItem>
+                      <SelectItem value="LOADER">Loaders</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {/* Subcategory */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Subcategory</label>
+                  <Select value={filters.subcategory} onValueChange={(v) => updateFilter('subcategory', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All subcategories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All subcategories</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Country */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Country</label>
+                  <Select value={filters.country} onValueChange={(v) => updateFilter('country', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All countries" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All countries</SelectItem>
+                      <SelectItem value="NZ">New Zealand</SelectItem>
+                      <SelectItem value="AU">Australia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Region */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Region</label>
+                  <Select value={filters.region} onValueChange={(v) => updateFilter('region', v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All regions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">All regions</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Price Range */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Price Range</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={filters.minPrice}
+                      onChange={(e) => updateFilter('minPrice', e.target.value)}
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={filters.maxPrice}
+                      onChange={(e) => updateFilter('maxPrice', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Sort By */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Sort By</label>
+                  <Select value={filters.sort} onValueChange={(v) => updateFilter('sort', v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="price-low">Price: Low to High</SelectItem>
+                      <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Clear Filters */}
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={clearFilters}
+                >
+                  Clear Filters
+                </Button>
               </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Sort By</label>
-                <Select value={filters.sort} onValueChange={(value) => updateFilter('sort', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => setFilters({
-                  search: '',
-                  category: '',
-                  country: '',
-                  region: '',
-                  minPrice: '',
-                  maxPrice: '',
-                  sort: 'newest'
-                })}
-              >
-                Clear Filters
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Listings Grid */}
-        <div className="lg:w-3/4">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold mb-2">Browse Machinery</h1>
-            <p className="text-muted-foreground">
-              {listings.length} {listings.length === 1 ? 'listing' : 'listings'} found
-            </p>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <div className="h-48 bg-muted rounded-t-lg" />
-                  <CardHeader>
-                    <div className="h-4 bg-muted rounded w-3/4" />
-                    <div className="h-3 bg-muted rounded w-1/2" />
-                  </CardHeader>
-                </Card>
-              ))}
             </div>
-          ) : listings.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-12">
-                <h3 className="text-lg font-semibold mb-2">No listings found</h3>
-                <p className="text-muted-foreground mb-4">
+          </aside>
+
+          {/* Main Content */}
+          <main className="flex-1">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Browse Equipment</h1>
+              <p className="text-gray-600">
+                {listings.length} listing{listings.length !== 1 ? 's' : ''} found
+              </p>
+            </div>
+
+            {/* Listings Grid */}
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="bg-white rounded-lg h-80 animate-pulse" />
+                ))}
+              </div>
+            ) : listings.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No listings found</h3>
+                <p className="text-gray-600 mb-6">
                   Try adjusting your filters or search terms
                 </p>
-                <Button onClick={() => setFilters({
-                  search: '',
-                  category: '',
-                  country: '',
-                  region: '',
-                  minPrice: '',
-                  maxPrice: '',
-                  sort: 'newest'
-                })}>
-                  Clear all filters
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {listings.map((listing) => (
-                <Link key={listing.id} href={`/listings/${listing.id}`}>
-                  <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-                    <div className="relative">
-                      {listing.photos.length > 0 ? (
-                        <img
-                          src={listing.photos[0].url}
-                          alt={listing.title}
-                          className="w-full h-48 object-cover rounded-t-lg"
-                        />
-                      ) : (
-                        <div className="w-full h-48 bg-muted rounded-t-lg flex items-center justify-center">
-                          <span className="text-muted-foreground">No photo</span>
+                <Button onClick={clearFilters}>Clear all filters</Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {listings.map((listing) => (
+                  <Link 
+                    key={listing.id} 
+                    href={`/listings/${listing.id}`}
+                    className="group"
+                  >
+                    <div className="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow overflow-hidden">
+                      <div className="aspect-video bg-gray-200 relative overflow-hidden">
+                        {listing.photos[0] ? (
+                          <img 
+                            src={listing.photos[0].url} 
+                            alt={listing.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            No image
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900 group-hover:text-amber-700 transition-colors line-clamp-1">
+                            {listing.title}
+                          </h3>
+                          <Badge variant="secondary" className="ml-2 flex-shrink-0">
+                            {listing.category}
+                          </Badge>
                         </div>
-                      )}
-                      <Badge className="absolute top-2 right-2">
-                        {listing.category}
-                      </Badge>
-                    </div>
-                    <CardHeader>
-                      <CardTitle className="line-clamp-1">{listing.title}</CardTitle>
-                      <CardDescription className="line-clamp-2">
-                        {listing.description}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
+                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                          {listing.description}
+                        </p>
                         <div className="flex items-center justify-between">
-                          <span className="text-2xl font-bold text-primary">
-                            {formatCurrency(listing.pricePerDay, listing.currency)}
-                            <span className="text-sm font-normal text-muted-foreground">/day</span>
-                          </span>
-                          {listing._count.reviews > 0 && (
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                              <span className="text-sm">({listing._count.reviews})</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span>{listing.region}, {listing.country}</span>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Listed by {listing.owner.farmName || listing.owner.name}
+                          <div className="flex items-center text-sm text-gray-500">
+                            <MapPin className="h-4 w-4 mr-1" />
+                            {listing.region}, {listing.country}
+                          </div>
+                          <div className="text-lg font-bold text-gray-900">
+                            ${listing.pricePerDay}
+                            <span className="text-sm font-normal text-gray-500">/day</span>
+                          </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </main>
         </div>
       </div>
     </div>
