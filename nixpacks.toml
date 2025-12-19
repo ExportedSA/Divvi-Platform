@@ -1,0 +1,8 @@
+# Railway build configuration
+# Force npm ci to use exact lockfile versions (prevents npm from regenerating optionalDependencies)
+
+[phases.install]
+cmds = ["npm ci --legacy-peer-deps"]
+
+[phases.build]
+cmds = ["npx prisma generate", "npm run build"]
