@@ -139,24 +139,24 @@ export default function HomePage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <Select value={selectedCategory || undefined} onValueChange={(v) => setSelectedCategory(v === 'all' ? '' : v)}>
                   <SelectTrigger className="h-11 md:w-36">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="TRACTOR">Tractors</SelectItem>
                     <SelectItem value="HARVESTER">Harvesters</SelectItem>
                     <SelectItem value="LOADER">Loaders</SelectItem>
                     <SelectItem value="OTHER">Other</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                <Select value={selectedCountry || undefined} onValueChange={(v) => setSelectedCountry(v === 'all' ? '' : v)}>
                   <SelectTrigger className="h-11 md:w-32">
                     <SelectValue placeholder="Country" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="NZ">NZ</SelectItem>
                     <SelectItem value="AU">AU</SelectItem>
                   </SelectContent>
