@@ -105,12 +105,12 @@ export default function BrowseClientPage() {
                 {/* Main Category */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Main Category</label>
-                  <Select value={filters.category} onValueChange={(v) => updateFilter('category', v)}>
+                  <Select value={filters.category || undefined} onValueChange={(v) => updateFilter('category', v === 'all' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All categories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All categories</SelectItem>
+                      <SelectItem value="all">All categories</SelectItem>
                       <SelectItem value="TRACTOR">Tractors</SelectItem>
                       <SelectItem value="HARVESTER">Harvesters</SelectItem>
                       <SelectItem value="LOADER">Loaders</SelectItem>
@@ -122,12 +122,12 @@ export default function BrowseClientPage() {
                 {/* Subcategory */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Subcategory</label>
-                  <Select value={filters.subcategory} onValueChange={(v) => updateFilter('subcategory', v)}>
+                  <Select value={filters.subcategory || undefined} onValueChange={(v) => updateFilter('subcategory', v === 'all' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All subcategories" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All subcategories</SelectItem>
+                      <SelectItem value="all">All subcategories</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -135,12 +135,12 @@ export default function BrowseClientPage() {
                 {/* Country */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Country</label>
-                  <Select value={filters.country} onValueChange={(v) => updateFilter('country', v)}>
+                  <Select value={filters.country || undefined} onValueChange={(v) => updateFilter('country', v === 'all' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All countries" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All countries</SelectItem>
+                      <SelectItem value="all">All countries</SelectItem>
                       <SelectItem value="NZ">New Zealand</SelectItem>
                       <SelectItem value="AU">Australia</SelectItem>
                     </SelectContent>
@@ -150,12 +150,12 @@ export default function BrowseClientPage() {
                 {/* Region */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Region</label>
-                  <Select value={filters.region} onValueChange={(v) => updateFilter('region', v)}>
+                  <Select value={filters.region || undefined} onValueChange={(v) => updateFilter('region', v === 'all' ? '' : v)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All regions" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All regions</SelectItem>
+                      <SelectItem value="all">All regions</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
