@@ -194,7 +194,9 @@ export default function HomePage() {
 
       {/* What's New Section */}
       <section className="py-12 relative">
-        <div className="container mx-auto px-4">
+        {/* Section background overlay */}
+        <div className="absolute inset-0 bg-white/60" />
+        <div className="container mx-auto px-4 relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-600" />
@@ -226,7 +228,9 @@ export default function HomePage() {
 
       {/* Most Popular Section */}
       <section className="py-12 relative">
-        <div className="container mx-auto px-4">
+        {/* Section background overlay */}
+        <div className="absolute inset-0 bg-white/60" />
+        <div className="container mx-auto px-4 relative z-10">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-amber-600" />
