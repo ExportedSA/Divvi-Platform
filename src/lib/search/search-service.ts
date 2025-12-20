@@ -83,7 +83,6 @@ export interface SearchResult {
   country: string
   region: string
   localArea: string | null
-  primaryImageUrl: string | null
   status: string
   brand: string | null
   model: string | null
@@ -178,7 +177,6 @@ export async function searchListings(
     country: listing.country,
     region: listing.region,
     localArea: listing.localArea,
-    primaryImageUrl: listing.photos?.[0]?.url || null,
     status: listing.status,
     brand: listing.brand,
     model: listing.model,
@@ -277,7 +275,6 @@ export async function searchAvailableListings(
     country: listing.country,
     region: listing.region,
     localArea: listing.localArea,
-    primaryImageUrl: listing.photos?.[0]?.url || null,
     status: listing.status,
     brand: listing.brand,
     model: listing.model,
