@@ -80,8 +80,14 @@ export default function BrowseClientPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white">
-      <div className="container mx-auto px-4 py-8">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-fixed"
+      style={{ backgroundImage: 'url(/images/hero-background.png)' }}
+    >
+      {/* Lighter overlay for entire page */}
+      <div className="absolute inset-0 bg-white/85" />
+      
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar Filters */}
           <aside className="lg:w-80 flex-shrink-0">

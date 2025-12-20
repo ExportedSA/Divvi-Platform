@@ -106,14 +106,15 @@ export default function HomePage() {
   )
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section with Background */}
-      <section 
-        className="relative py-20 md:py-32 bg-cover bg-center"
-        style={{ backgroundImage: 'url(/images/hero-background.png)' }}
-      >
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-100/80 via-amber-50/70 to-white/90" />
+    <div 
+      className="min-h-screen bg-cover bg-center bg-fixed"
+      style={{ backgroundImage: 'url(/images/hero-background.png)' }}
+    >
+      {/* Lighter overlay for entire page */}
+      <div className="absolute inset-0 bg-white/85" />
+      
+      {/* Hero Section */}
+      <section className="relative py-20 md:py-32">
         
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
@@ -192,7 +193,7 @@ export default function HomePage() {
       </section>
 
       {/* What's New Section */}
-      <section className="py-12 bg-white">
+      <section className="py-12 relative">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
@@ -224,7 +225,7 @@ export default function HomePage() {
       </section>
 
       {/* Most Popular Section */}
-      <section className="py-12 bg-gray-50">
+      <section className="py-12 relative">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
