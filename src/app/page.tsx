@@ -195,16 +195,17 @@ export default function HomePage() {
       {/* What's New Section */}
       <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-600" />
-              <h2 className="text-2xl font-bold text-gray-900">What's New</h2>
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-600" />
+                <h2 className="text-2xl font-bold text-gray-900">What's New</h2>
+              </div>
+              <Link href="/browse?sort=newest" className="text-sm text-gray-600 hover:text-gray-900">
+                View all
+              </Link>
             </div>
-            <Link href="/browse?sort=newest" className="text-sm text-gray-600 hover:text-gray-900">
-              View all
-            </Link>
-          </div>
-          <p className="text-gray-600 mb-6 text-sm">Check out the latest equipment added to Divvi</p>
+            <p className="text-gray-600 mb-6 text-sm">Check out the latest equipment added to Divvi</p>
           
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -221,22 +222,24 @@ export default function HomePage() {
           ) : (
             <p className="text-gray-500 text-center py-8">No recent listings available</p>
           )}
+          </div>
         </div>
       </section>
 
       {/* Most Popular Section */}
       <section className="py-12">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-amber-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Most Popular</h2>
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-amber-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Most Popular</h2>
+              </div>
+              <Link href="/browse" className="text-sm text-gray-600 hover:text-gray-900">
+                View all
+              </Link>
             </div>
-            <Link href="/browse" className="text-sm text-gray-600 hover:text-gray-900">
-              View all
-            </Link>
-          </div>
-          <p className="text-gray-600 mb-6 text-sm">Top most rented items on Divvi</p>
+            <p className="text-gray-600 mb-6 text-sm">Top most rented items on Divvi</p>
           
           {loading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -253,6 +256,7 @@ export default function HomePage() {
           ) : (
             <p className="text-gray-500 text-center py-8">No popular listings available yet</p>
           )}
+          </div>
         </div>
       </section>
     </div>
