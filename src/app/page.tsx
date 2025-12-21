@@ -106,10 +106,10 @@ export default function HomePage() {
   )
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Background image with opacity applied directly */}
+    <div className="min-h-screen bg-white relative">
+      {/* Background image with opacity applied directly - covers full viewport */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-fixed opacity-20"
+        className="fixed inset-0 bg-cover bg-center opacity-20 -z-10"
         style={{ backgroundImage: 'url(/images/hero-background.png)' }}
       />
       
