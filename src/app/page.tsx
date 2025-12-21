@@ -106,12 +106,12 @@ export default function HomePage() {
   )
 
   return (
-    <div 
-      className="min-h-screen bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: 'url(/images/hero-background.png)' }}
-    >
-      {/* Stronger overlay to neutralize background color variations */}
-      <div className="absolute inset-0 bg-white/90" />
+    <div className="min-h-screen bg-white">
+      {/* Background image with opacity applied directly */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-fixed opacity-20"
+        style={{ backgroundImage: 'url(/images/hero-background.png)' }}
+      />
       
       {/* Hero Section */}
       <section className="relative py-20 md:py-32">
