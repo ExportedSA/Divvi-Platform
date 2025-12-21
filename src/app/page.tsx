@@ -110,8 +110,8 @@ export default function HomePage() {
       className="min-h-screen bg-cover bg-center bg-fixed"
       style={{ backgroundImage: 'url(/images/hero-background.png)' }}
     >
-      {/* Lighter overlay for entire page */}
-      <div className="absolute inset-0 bg-white/85" />
+      {/* Stronger overlay to neutralize background color variations */}
+      <div className="absolute inset-0 bg-white/90" />
       
       {/* Hero Section */}
       <section className="relative py-20 md:py-32">
