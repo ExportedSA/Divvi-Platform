@@ -195,7 +195,7 @@ export default function HomePage() {
       </section>
 
       {/* What's New Section */}
-      <section>
+      <section className="mb-12">
         <div className="container mx-auto px-4">
           <div className="bg-white/90 backdrop-blur-sm rounded-lg p-8 shadow-sm">
             <div className="flex items-center justify-between mb-6">
